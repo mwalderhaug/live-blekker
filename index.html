@@ -519,6 +519,7 @@ function renderHome(){document.body.className="";
     (SCENE?'<span class="dat">Blekker oppdatert '+esc(atLabel(S.dataAt))+'</span>':"")+'</footer>';
   if(!SCENE&&!GH){return h+setupHTML()+'</div>';}
   if(GHS.err==="auth"&&!S.got.songs){return h+setupHTML("Nøkkelen virker ikke lenger (utløpt eller slettet). Lag en ny og lim den inn.")+'</div>';}
+  if(GHS.err==="perm"&&!S.got.songs){return h+setupHTML("Nøkkelen mangler tillatelsen «Contents». Rediger nøkkelen på GitHub: Repository permissions → Contents → Read and write → Update. Last så inn siden på nytt.")+'</div>';}
   if(GHS.err==="norepo"&&!S.got.songs){return h+setupHTML("Fant ikke repoet. Sjekk at nøkkelen har tilgang til «"+(GH&&GH.repo)+"».")+'</div>';}
   if(S.err){return h+'<div class="msg">Lagringen svarte ikke ('+esc(S.err)+'). Last inn siden på nytt.</div></div>';}
   if(!S.got.songs){return h+'<div class="msg">'+(S.slow||GHS.off?"Får ikke kontakt med GitHub ennå. Sjekk at du er på nett.":"Henter sanger …")+'</div></div>';}
@@ -987,6 +988,7 @@ function hhmm(s){var d=new Date(s);if(isNaN(d))return "";var p=function(n){retur
 function syncInfo(){if(!GH)return null;var n=Object.keys(Q).length;
   if(GHS.err==="auth")return {c:"bad",t:"Nøkkelen virker ikke – koble til på nytt"};
   if(GHS.err==="norepo")return {c:"bad",t:"Fant ikke repoet"};
+  if(GHS.err==="perm")return {c:"bad",t:"Nøkkelen mangler tillatelse (Contents)"};
   if(n)return {c:"wait",t:n+" "+(n===1?"endring":"endringer")+(GHS.off?" venter på nett":" sendes …")};
   if(GHS.off)return {c:"wait",t:"Uten nett · viser lagret kopi"+(GHS.at?" fra "+hhmm(GHS.at):"")};
   return {c:"ok",t:"Alt er lagret"+(GHS.at?" · hentet "+hhmm(GHS.at):"")};}
@@ -999,7 +1001,8 @@ var ghdb={collection:function(c){return {onSnapshot:function(ok){SUBS[c].push(ok
 function kick(ms){clearTimeout(kick.t);kick.t=setTimeout(pump,ms==null?1200:ms);showSync();}
 async function ghPull(force){if(!GH||GHS.pulling)return;GHS.pulling=true;
   try{var r=await api("GET","/git/trees/"+encodeURIComponent(GH.br||"main")+"?recursive=1&t="+Date.now());
-    if(r.status===401||r.status===403){GHS.err="auth";render();return;}
+    if(r.status===401){GHS.err="auth";render();return;}
+    if(r.status===403){GHS.err="perm";render();return;}
     if(r.status===404||r.status===409){var r2=await api("GET","?t="+Date.now());
       if(r2.status===401||r2.status===403){GHS.err="auth";render();return;}
       if(r2.status===404){GHS.err="norepo";render();return;}
@@ -1018,13 +1021,13 @@ async function ghPull(force){if(!GH||GHS.pulling)return;GHS.pulling=true;
     if(bad.length)toast("Kunne ikke lese "+bad.map(function(p){return p.replace(/\.json$/,"");}).join(", ")+" (feil i fila)",true,5000);}
   catch(e){GHS.off=true;showSync();}
   finally{GHS.pulling=false;}}
-async function pump(){if(!GH||GHS.pumping||GHS.err==="auth")return;if(!Object.keys(Q).length){showSync();return;}GHS.pumping=true;showSync();
+async function pump(){if(!GH||GHS.pumping||GHS.err==="auth"||GHS.err==="perm")return;if(!Object.keys(Q).length){showSync();return;}GHS.pumping=true;showSync();
   try{for(;;){var ks=Object.keys(Q);if(!ks.length)break;var p=ks[0],it=Q[p];var res=await pushOne(p,it,false);
-      if(res!=="ok"){if(res==="auth"){GHS.err="auth";render();}else GHS.off=true;break;}
+      if(res!=="ok"){if(res==="auth"||res==="perm"){GHS.err=res;render();}else GHS.off=true;break;}
       GHS.off=false;if(Q[p]===it){delete Q[p];saveQ();}}}
-  finally{GHS.pumping=false;showSync();if(Object.keys(Q).length&&!GHS.off&&GHS.err!=="auth")kick(4000);}}
+  finally{GHS.pumping=false;showSync();if(Object.keys(Q).length&&!GHS.off&&GHS.err!=="auth"&&GHS.err!=="perm")kick(4000);}}
 async function pushOne(p,it,retry){
-  function code(st){return st===401||st===403?"auth":"off";}
+  function code(st){return st===401?"auth":st===403?"perm":"off";}
   try{var url=fpath(p),del=it.d===null,msg=(del?"Slett ":"Oppdater ")+p.replace(/\.json$/,"")+" ("+devName()+")";
     var body={message:msg};if(!del)body.content=b64e(JSON.stringify(it.d,null,2)+"\n");
     if(GHS.sha[p])body.sha=GHS.sha[p];
@@ -1054,7 +1057,10 @@ async function ghConnect(){var ti=$("gh-t"),ri=$("gh-r");var t=ti?ti.value.trim(
     if(r.status===401){S.ghErr="Nøkkelen er feil eller utløpt.";}
     else if(r.status===404||r.status===403){S.ghErr="Fant ikke repoet med denne nøkkelen. Sjekk at nøkkelen har tilgang til «"+repo+"».";}
     else if(!r.ok){S.ghErr="GitHub svarte ikke ("+r.status+"). Prøv igjen.";}
-    else{var info=await r.json();GH={t:t,repo:repo,br:info.default_branch||"main"};try{localStorage.setItem("lb.gh",JSON.stringify(GH));}catch(x){}
+    else{var info=await r.json();var br=info.default_branch||"main";
+      var tr=await ghFetch({t:t,repo:repo},"GET","/git/trees/"+encodeURIComponent(br)+"?t="+Date.now());
+      if(tr.status===403){S.ghErr="Nøkkelen mangler tillatelsen «Contents». Rediger nøkkelen på GitHub: Repository permissions → Contents → Read and write → Update. Last så inn siden på nytt.";S.ghBusy=false;render();return;}
+      GH={t:t,repo:repo,br:br};try{localStorage.setItem("lb.gh",JSON.stringify(GH));}catch(x){}
       S.ghBusy=false;GHS.err=null;startGH();toast("Koblet til",false,2500);return;}}
   catch(e){S.ghErr="Får ikke kontakt med GitHub. Sjekk nettet.";}
   S.ghBusy=false;render();}
