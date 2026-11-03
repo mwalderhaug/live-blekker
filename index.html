@@ -42,7 +42,7 @@ html[data-q] .bar:not(.lbar) .back::after{content:"";display:inline-block;width:
   --fg:#ede5d7; --muted:#9b9080; --chord:#a9c79b;
   --warn-bg:#3d1913; --warn-fg:#ffb7a5; --warn-line:#a9412f;
   --kon:#dd5549; --kw:#e9e2d5; --kb:#120f0b; --kl:#5f574c;
-  --e0:#4a4339; --e1:#6f9f7a; --e2:#a3b46a; --e3:#d6a94c; --e4:#dd8045; --e5:#d9514a;
+  --e0:#3a332b; --e1:#6f9f7a; --e2:#a3b46a; --e3:#d6a94c; --e4:#dd8045; --e5:#d9514a;
   --k-vers:#7fa893; --k-pre:#66aaa4; --k-ref:#a2cc7e; --k-bro:#c4c066; --k-ins:#8b8274;  --f-lyr:"Source Sans 3","Helvetica Neue",Arial,sans-serif;
   --f-ch:"Barlow Semi Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
 }
@@ -58,6 +58,29 @@ input,textarea,select,a{touch-action:manipulation}
 .btn.on{border-color:var(--chord);color:var(--chord)}
 .btn:active{background:var(--line);transform:scale(.97)}
 .btn.ghost{background:transparent}
+/* Live-knapp: kontur i salvie, liten trekant (SVG, så iOS ikke gjør den til emoji) */
+.btn.live,.btn.lv{background:transparent;border-color:var(--chord);color:var(--chord);display:inline-flex;align-items:center;gap:.45em}
+.btn.live:disabled{opacity:.4}
+.pl{width:.62em;height:.72em;fill:currentColor;flex:none}
+/* Vanlig visning: verktøyene på egen rad, rolige knapper */
+.bar>.tools{order:5;flex-basis:100%;justify-content:flex-start}
+.vt .btn{background:transparent;min-height:38px;font-size:15px;padding:5px 12px}
+/* Live: hele skjermen til blekka. Trykk viser menyen som et lag over. */
+body.golive #app{padding-top:8px}
+.lov{position:fixed;left:0;right:0;top:0;z-index:40;background:rgba(21,18,14,.97);border-bottom:1px solid var(--line);
+  padding:8px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));transform:translateY(-105%);transition:transform .18s ease-out;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.lov.on{transform:none}
+.lov .bar{padding:0}
+.lov .lbar .ttl{white-space:normal;font-size:24px;line-height:1.15}
+.lov .lbar .lmeta{margin-left:0;display:block;font-size:16px;margin-top:2px}
+.lov .kbtn{order:3;min-height:42px;font-size:20px;padding:0 14px}
+.lov .qk{margin:10px 0 0}
+.lpill{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:35;pointer-events:none;background:rgba(41,34,25,.96);border:1px solid var(--line);border-radius:999px;
+  padding:6px 16px;font-family:var(--f-ch);font-weight:600;font-size:17px;color:var(--fg);white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;opacity:0;animation:lpill 2.4s ease-out forwards}
+.lpill b{color:var(--chord);font-weight:600}
+.lpill .h{color:var(--muted);font-weight:500}
+@keyframes lpill{0%{opacity:0}10%{opacity:1}75%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.lov{transition:none}}
 .btn.danger{border-color:var(--warn-line);color:var(--warn-fg)}
 .btn:focus-visible,.tab:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--chord);outline-offset:2px}
 input,textarea,select{font-family:var(--f-lyr);font-size:16px;background:var(--raise);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;box-sizing:border-box;max-width:100%}
@@ -87,7 +110,7 @@ textarea{width:100%;line-height:1.45;resize:vertical}
 .sc-meta .nx{color:var(--chord);font-weight:600}
 .sc-songs{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-act{display:flex;gap:8px;flex:none;margin-left:auto}
-.btn.live{background:var(--chord);border-color:var(--chord);color:#14110d;min-width:96px}
+.btn.live{min-width:88px;justify-content:center}
 .past .scard{padding:8px 12px;background:transparent}
 .past .sc-date{width:48px;height:48px}.past .sc-date b{font-size:21px}
 .past .sc-name{font-size:18px}
@@ -208,17 +231,17 @@ label.btn{display:inline-flex;align-items:center;justify-content:center}
 .held{font-size:13px;color:var(--muted);margin-top:6px}
 .held b{color:var(--fg)}
 
-.sheet{overflow:hidden;column-gap:1.6em;-webkit-column-gap:1.6em;column-rule:1px solid var(--line);-webkit-column-rule:1px solid var(--line);font-size:18px}
+.sheet{overflow:hidden;column-gap:2.2em;-webkit-column-gap:2.2em;column-rule:none;-webkit-column-rule:none;font-size:18px}
 .sheet.scroll{overflow:visible;height:auto!important}
-.sec{display:inline-block;width:100%;box-sizing:border-box;border-left:.3em solid var(--e0);padding:.05em 0 .1em .55em;margin:0 0 .6em;break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid;--ec:var(--e0);--kc:var(--k-ins);border-radius:0}
+.sec{display:inline-block;width:100%;box-sizing:border-box;border-left:.2em solid var(--e0);padding:.05em 0 .1em .75em;margin:0 0 .8em;break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid;--ec:var(--e0);--kc:var(--k-ins);border-radius:0}
 .sec.k-vers{--kc:var(--k-vers)} .sec.k-pre{--kc:var(--k-pre)} .sec.k-ref{--kc:var(--k-ref)} .sec.k-bro{--kc:var(--k-bro)}
 .sec.rpt .sh{margin:0}
 .sec.e1{border-left-color:var(--e1);--ec:var(--e1)} .sec.e2{border-left-color:var(--e2);--ec:var(--e2)} .sec.e3{border-left-color:var(--e3);--ec:var(--e3)} .sec.e4{border-left-color:var(--e4);--ec:var(--e4)} .sec.e5{border-left-color:var(--e5);--ec:var(--e5)}
 .sec.sel{outline:1px solid var(--muted);outline-offset:-1px}
 .sh{display:flex;flex-wrap:wrap;align-items:center;gap:.2em .5em;margin-bottom:.2em}
-.sn{font-family:var(--f-ch);font-weight:600;font-size:.8em;letter-spacing:.07em;text-transform:uppercase;background:var(--kc);color:#14110d;border-radius:.25em;padding:.02em .45em}
+.sn{font-family:var(--f-ch);font-weight:600;font-size:.74em;letter-spacing:.1em;text-transform:uppercase;color:var(--kc)}
 .after{font-family:var(--f-ch);font-weight:500;font-size:.85em;color:var(--fg);margin-top:.15em}
-.rep{font-family:var(--f-ch);font-weight:600;font-size:.75em;border:1px solid var(--line);border-radius:.3em;padding:0 .35em}
+.rep{font-family:var(--f-ch);font-weight:600;font-size:.74em;letter-spacing:.04em;color:var(--muted)}
 .note{font-size:.75em;color:var(--muted);font-style:italic}
 .cue{font-family:var(--f-ch);font-weight:600;font-size:.78em;border:1px solid var(--ec);border-radius:.3em;padding:0 .4em}
 .ln{display:flex;flex-wrap:wrap;align-items:flex-end;line-height:1.22;margin-bottom:.22em}
@@ -229,7 +252,7 @@ label.btn{display:inline-flex;align-items:center;justify-content:center}
 .tx .t{white-space:pre-wrap}
 .bars{display:block;line-height:1.3}
 .bars .c{padding:0 .2em}
-.bt{white-space:pre;color:var(--muted)}
+.bt{white-space:pre;color:#6c6356}
 .cmp{line-height:1.3}
 .cmp .som{font-size:.75em;color:var(--muted);font-style:italic;margin-right:.4em}
 .cmp .dv{color:var(--muted);margin:0 .35em}
@@ -530,7 +553,7 @@ function setCard(id,sl,cls){var n=(sl.items||[]).length;var dp=dparts(sl.date);v
   return '<div class="scard'+(cls?" "+cls:"")+'"><button class="sc-main" data-act="'+(SCENE?"liveset":"openset")+'" data-id="'+esc(id)+'">'+
     '<span class="sc-date">'+(dp?'<b>'+dp.d+'</b><span>'+esc(dp.mon.replace(".",""))+'</span>':'<b>–</b>')+'</span>'+
     '<span class="sc-body"><span class="sc-name">'+esc(sl.name||id)+'</span><span class="sc-meta">'+(cls==="next"?'<span class="nx">Neste</span> · ':"")+esc(when)+' · '+n+' '+(n===1?"sang":"sanger")+'</span>'+(names?'<span class="sc-songs">'+esc(names)+'</span>':"")+'</span></button>'+
-    '<div class="sc-act">'+(SCENE?"":'<button class="btn ghost" data-act="toggleset" data-id="'+esc(id)+'" aria-expanded="'+(S.openSet===id)+'">'+(S.openSet===id?"Lukk":"Endre")+'</button>')+''+(SCENE?"":'<button class="btn ghost" data-act="openset" data-id="'+esc(id)+'">Åpne</button>')+'<button class="btn live" data-act="liveset" data-id="'+esc(id)+'"'+(n?"":" disabled")+'>▶ Live</button>'+'</div></div>'+
+    '<div class="sc-act">'+(SCENE?"":'<button class="btn ghost" data-act="toggleset" data-id="'+esc(id)+'" aria-expanded="'+(S.openSet===id)+'">'+(S.openSet===id?"Lukk":"Endre")+'</button>')+''+(SCENE?"":'<button class="btn ghost" data-act="openset" data-id="'+esc(id)+'">Åpne</button>')+'<button class="btn live" data-act="liveset" data-id="'+esc(id)+'"'+(n?"":" disabled")+'><svg class="pl" viewBox="0 0 10 12" aria-hidden="true"><path d="M1 1l8 5-8 5z"/></svg>Live</button>'+'</div></div>'+
     (S.openSet===id?setEditor(id,sl):"");}
 function setsTab(){var t=todayStr();var ids=Object.keys(S.sets);
   var up=ids.filter(function(id){var d=S.sets[id].date;return !d||d>=t;}).sort(function(a,b){return String(S.sets[a].date||"9999").localeCompare(String(S.sets[b].date||"9999"));});
@@ -577,25 +600,30 @@ function renderSong(){var L=screens();if(!L||!L.length){S.view="home";return ren
   var meta=[ent.parts>1&&!S.edit?'<b>Del '+(ent.part+1)+'/'+ent.parts+'</b>':"",song.artist?esc(song.artist):"",keyH,song.bpm?esc(song.bpm)+" BPM":"",esc(song.time||"4/4")].filter(function(x){return x;}).join(" · ");
   var tools=S.edit?'<div class="tools">'+[["chords","Akkorder"],["parts","Deler"],["details","Detaljer"]].map(function(t){return '<button class="btn'+(S.etab===t[0]?" on":"")+'" data-act="etab" data-v="'+t[0]+'" aria-pressed="'+(S.etab===t[0])+'">'+t[1]+'</button>';}).join("")+
       '<button class="btn ghost" data-act="undo"'+(S.hist.length?"":" disabled")+'>Angre</button><button class="btn pri" data-act="edit">Ferdig</button></div>':
-    '<div class="tools"><button class="btn pri" data-act="golive">▶ Live</button><button class="btn'+(S.qk?" on":"")+'" data-act="qk" aria-pressed="'+S.qk+'">Toneart <b>'+esc(ctx.curName)+'</b></button><button class="btn'+(S.panel?" on":"")+'" data-act="panel" aria-pressed="'+S.panel+'">Akkordhjelp</button><button class="btn'+(S.nns?" on":"")+'" data-act="nns">'+(S.nns?"ABC":"123")+'</button><button class="btn'+(S.emode?" on":"")+'" data-act="emode">Energi</button><button class="btn" data-act="edit">Rediger</button></div>';
+    '<div class="tools vt"><button class="btn lv" data-act="golive"><svg class="pl" viewBox="0 0 10 12" aria-hidden="true"><path d="M1 1l8 5-8 5z"/></svg>Live</button><button class="btn'+(S.qk?" on":"")+'" data-act="qk" aria-pressed="'+S.qk+'">Toneart <b>'+esc(ctx.curName)+'</b></button><button class="btn'+(S.panel?" on":"")+'" data-act="panel" aria-pressed="'+S.panel+'">Akkordhjelp</button><button class="btn'+(S.nns?" on":"")+'" data-act="nns">'+(S.nns?"ABC":"123")+'</button><button class="btn'+(S.emode?" on":"")+'" data-act="emode">Energi</button><button class="btn" data-act="edit">Rediger</button></div>';
 
   var h;
-  if(LV){var loc=!!(ent.item&&ent.item._loc);var lm=['<button class="kbtn'+(loc?" loc":"")+(S.qk?" on":"")+'" data-act="qk" aria-label="Endre toneart">'+esc(ctx.curName)+(loc?" •":"")+'</button>',ent.parts>1?'<b>del '+(ent.part+1)+'/'+ent.parts+'</b>':"",song.bpm?esc(song.bpm)+" BPM":"",esc(song.time||"4/4")].filter(function(x){return x;}).join(" · ");
-    h='<div class="bar lbar"><button class="btn ghost back lx'+(S.lexit?" ask":"")+'" data-act="liveexit">'+(S.lexit?"Trykk igjen":"Avslutt")+'</button><div class="tt"><div class="ttl">'+esc(dname(song,ent.id))+'<span class="lmeta">'+lm+'</span></div></div>'+navR+'</div>';}
-  else h='<div class="bar">'+nav+'<div class="tt"><div class="ttl">'+esc(dname(song,ent.id))+'</div><div class="meta">'+meta+'</div></div>'+tools+(S.edit?"":navR)+'</div>';
+  if(LV){var loc=!!(ent.item&&ent.item._loc);var lm=[song.artist?esc(song.artist):"",ent.parts>1?'<b>del '+(ent.part+1)+'/'+ent.parts+'</b>':"",song.bpm?esc(song.bpm)+" BPM":"",esc(song.time||"4/4")].filter(function(x){return x;}).join(" · ");
+    h='<div id="lov" class="lov'+(S.lov?" on":"")+'"><div class="bar lbar"><button class="btn ghost back lx'+(S.lexit?" ask":"")+'" data-act="liveexit">'+(S.lexit?"Trykk igjen":"Avslutt")+'</button>'+
+      '<div class="tt"><div class="ttl">'+esc(dname(song,ent.id))+'</div><span class="lmeta">'+lm+'</span></div>'+
+      '<button class="kbtn'+(loc?" loc":"")+(S.qk?" on":"")+'" data-act="qk" aria-label="Endre toneart">'+esc(ctx.curName)+(loc?" •":"")+'</button>'+navR+'</div>'+
+      (S.qk?qkHTML(song,ent,ctx):"")+'</div>';
+    var pk=S.list+"|"+S.idx;if(S.pillFor!==pk&&!S.prefit){S.pillFor=pk;if(!S.lov){var hint="";if(S.lhint){hint=' <span class="h">· trykk på skjermen for meny</span>';S.lhint=false;}
+      h+='<div class="lpill">'+esc(dname(song,ent.id))+' · <b>'+esc(ctx.curName)+'</b>'+hint+'</div>';}}}
+  else h='<div class="bar">'+nav+'<div class="tt"><div class="ttl">'+esc(dname(song,ent.id))+'</div><div class="meta">'+meta+'</div></div>'+(S.edit?"":navR)+tools+'</div>';
   if(S.edit){var nu=setsUsing(ent.id).length;h+='<p class="ehint">Endringer gjelder <b>'+esc(dname(song,ent.id))+'</b> overalt'+(nu?' ('+nu+' '+(nu===1?"setliste":"setlister")+')':"")+'. Tonearten er egen per setliste. Spiller et annet band den annerledes: lag en egen versjon under Detaljer.</p>';}
   if(S.edit){var ectx=ctxFor(song,ent.item);ectx.nns=false;return h+(S.etab==="parts"?partsHTML(song,ectx):S.etab==="details"?editHTML(song,ent,ctx):chordsHTML(song,ectx));}
   var part=partsOf(song)[ent.part]||song.sections;var inPart={};part.forEach(function(x){inPart[x.id]=1;});
   var w=ent.part===0?(song.warn||[]).filter(function(x){return String(x).trim();}):[];
   if(w.length)h+='<div class="warn"><span class="wl">Før du spiller</span>'+w.map(function(x){return '<span>'+esc(x)+'</span>';}).join('<span aria-hidden="true">·</span>')+'</div>';
-  if(S.qk&&!S.edit)h+=qkHTML(song,ent,ctx);
+  if(S.qk&&!S.edit&&!LV)h+=qkHTML(song,ent,ctx);
   var miss=LV?"":song.missing;
   if((song.rig&&ent.part===0)||miss)h+='<div class="rig">'+(song.rig&&ent.part===0?'<span>Rigg: '+esc(song.rig)+'</span>':"")+(miss?'<span class="miss">'+esc(miss)+'</span>':"")+'</div>';
   if(S.panel&&!LV)h+=panelHTML(song,ctx);
   var cp=song.compact==="on";
   return h+'<div id="sheet" class="sheet" data-cp="'+(cp?"1":"")+'">'+sheetInner(song,ctx,part,cp)+'</div>';}
 
-var MAXF=20;
+var MAXF=28;
 var FC={};try{FC=JSON.parse(localStorage.getItem("lb.fit")||"{}")||{};}catch(e){FC={};}
 function saveFC(){clearTimeout(saveFC.t);saveFC.t=setTimeout(function(){try{if(Object.keys(FC).length>400)FC={};localStorage.setItem("lb.fit",JSON.stringify(FC));}catch(e){}},1500);}
 function hash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36);}
@@ -635,8 +663,8 @@ function fit(){var sh=$("sheet");if(!sh)return;var e=curScreen();var song=e&&S.s
 /* Regner ut neste og forrige skjerm i bakgrunnen, så sveipet blir like raskt første gang. */
 function prefit(){clearTimeout(prefit.t);prefit.t=setTimeout(function(){if(S.view!=="song"||S.edit||drag)return;var L=screens();if(!L)return;var app=$("app");
   [S.idx+1,S.idx-1].forEach(function(n){if(n<0||n>=L.length)return;var e=L[n];var song=S.songs[e.id];if(!song)return;
-    var keep={idx:S.idx,ps:S.psid,bc:document.body.className},html;S.idx=n;S.psid=null;
-    try{html=renderSong();}catch(x){html="";}S.idx=keep.idx;S.psid=keep.ps;document.body.className=keep.bc;if(!html)return;
+    var keep={idx:S.idx,ps:S.psid,bc:document.body.className},html;S.idx=n;S.psid=null;S.prefit=true;
+    try{html=renderSong();}catch(x){html="";}S.prefit=false;S.idx=keep.idx;S.psid=keep.ps;document.body.className=keep.bc;if(!html)return;
     var box=document.createElement("div");box.setAttribute("aria-hidden","true");box.style.cssText="position:absolute;left:0;top:0;visibility:hidden;pointer-events:none;width:"+app.clientWidth+"px";box.innerHTML=html;document.body.appendChild(box);
     var sh=box.querySelector(".sheet");if(sh){sh.removeAttribute("id");var top=sh.getBoundingClientRect().top-box.getBoundingClientRect().top;var H=Math.max(160,Math.round(window.innerHeight-top-12-barRes()));
       try{fitSheet(sh,H,e,song);}catch(x){}}
@@ -796,7 +824,7 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){S.f
 var RM=false;try{RM=window.matchMedia("(prefers-reduced-motion: reduce)").matches;}catch(e){}
 function setT(el,tr,tf,op){el.style.transition=tr;el.style.transform=tf;el.style.opacity=op==null?"":op;}
 function clearT(el){el.style.transition="";el.style.transform="";el.style.opacity="";}
-function go(d,fromSwipe){var L=screens();if(!L)return;var n=S.idx+d;if(n<0||n>=L.length){bump(d);return;}S.idx=n;S.qk=false;S.psid=null;S.esel=null;render();window.scrollTo(0,0);
+function go(d,fromSwipe){var L=screens();if(!L)return;var n=S.idx+d;if(n<0||n>=L.length){bump(d);return;}S.idx=n;S.qk=false;if(S.live){S.lov=false;clearTimeout(lovShow.t);}S.psid=null;S.esel=null;render();window.scrollTo(0,0);
   var app=$("app");if(RM){clearT(app);return;}var W=window.innerWidth;
   setT(app,"none","translate3d("+(d*W*(fromSwipe?1:0.3))+"px,0,0)",fromSwipe?"":"0.4");void app.offsetWidth;
   setT(app,"transform .24s cubic-bezier(.2,.8,.2,1), opacity .2s ease-out","translate3d(0,0,0)","1");
@@ -815,7 +843,10 @@ function setEnergy(v,v2){var e=curScreen();if(!e||!S.esel||!S.songs[e.id])return
   var el=document.querySelector('.sec[data-own="'+S.esel+'"]');if(el){el.className=el.className.replace(/\be[0-5]\b/,"e"+v);var rp=rampOf(sec);el.style.borderImage=rp?"linear-gradient(to bottom,var(--e"+rp[0]+"),var(--e"+rp[1]+")) 1":"";}
   var part=partsOf(song)[e.part]||[];for(var i=0;i<part.length-1;i++)if(part[i].id===S.esel){S.esel=part[i+1].id;break;}
   markSel();$("epal").innerHTML=epalHTML();}
-function goLive(){S.live=true;S.lexit=false;S.panel=false;S.emode=false;S.edit=false;S.draft=null;
+function lovShow(on){S.lov=!!on;var el=$("lov");if(el)el.classList.toggle("on",S.lov);clearTimeout(lovShow.t);
+  if(S.lov&&!S.qk)lovShow.t=setTimeout(function(){if(!S.qk&&!S.lexit)lovShow(false);},6000);}
+function goLive(){S.live=true;S.lexit=false;S.panel=false;S.emode=false;S.edit=false;S.draft=null;S.lov=false;S.qk=false;S.pillFor=null;
+  try{var lh=+(localStorage.getItem("lb.lh")||0);S.lhint=lh<3;localStorage.setItem("lb.lh",String(lh+1));}catch(x){S.lhint=false;}
   try{if(fsOK()&&!fsOn()){var el=document.documentElement;var p=(el.requestFullscreen||el.webkitRequestFullscreen).call(el);if(p&&p.catch)p.catch(function(){});}}catch(x){}wake();}
 function mkVer(){if(!ready())return;var inp=$("nv-name");var nm=inp?inp.value.trim():"";if(!nm){toast("Skriv navnet på versjonen først, f.eks. bandnavnet.",true);if(inp)inp.focus();return;}
   flushAll();var e=curScreen();var src0=S.draft;var base=(src0.base&&S.songs[src0.base])?src0.base:e.id;var nid=slug(base+"-"+nm),k=2;while(S.songs[nid])nid=slug(base+"-"+nm)+"-"+(k++);
@@ -834,6 +865,8 @@ function wake(){S.wantWake=true;try{if(navigator.wakeLock&&!S.wake)navigator.wak
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&S.wantWake&&S.view==="song")wake();});
 
 document.addEventListener("click",function(ev){var el=ev.target.closest?ev.target.closest("[data-act]"):null;
+  if(!el&&S.view==="song"&&S.live&&!S.edit&&$("sheet")&&!(ev.target.closest&&ev.target.closest(".lov,.qk,input,textarea,select"))){
+    var fx=ev.clientX/window.innerWidth;if(S.tapNav&&fx<0.22){go(-1);return;}if(S.tapNav&&fx>0.78){go(1);return;}lovShow(!S.lov);return;}
   if(!el&&S.tapNav&&S.view==="song"&&!S.edit&&!S.emode&&$("sheet")&&!(ev.target.closest&&ev.target.closest(".bar,.pn,.epal,.qk,.lcl,input,textarea"))){go(ev.clientX>window.innerWidth/3?1:-1);return;}
   if(!el){var sec=ev.target.closest?ev.target.closest(".sec"):null;
     if(sec&&S.emode&&!S.edit){S.esel=sec.getAttribute("data-own");markSel();$("epal").innerHTML=epalHTML();return;}
@@ -860,8 +893,8 @@ document.addEventListener("click",function(ev){var el=ev.target.closest?ev.targe
   else if(a==="emode"){if(!S.emode&&!ready())return;S.emode=!S.emode;S.esel=null;S.eramp=null;render();}
   else if(a==="eset"){var ev=+el.getAttribute("data-v");if(S.eramp){if(S.eramp.s==null){S.eramp={s:ev};$("epal").innerHTML=epalHTML();}else{var st=S.eramp.s;S.eramp=null;setEnergy(st,ev);}}else setEnergy(ev,null);}
   else if(a==="eramp"){S.eramp=S.eramp?null:{};$("epal").innerHTML=epalHTML();}
-  else if(a==="qk"){S.qk=!S.qk;render();}
-  else if(a==="qkey"){qKey(+el.getAttribute("data-d"));}
+  else if(a==="qk"){S.qk=!S.qk;render();if(S.live&&!S.edit)lovShow(true);}
+  else if(a==="qkey"){qKey(+el.getAttribute("data-d"));if(S.live&&!S.edit)lovShow(true);}
   else if(a==="kores"){KO={};saveKO();render();toast("Tonearter tilbakestilt til det som ligger i skyen",false,3000);}
   else if(a==="dsec"){var dx=+el.getAttribute("data-si");S.dsec=S.dsec===dx?null:dx;render();}
   else if(a==="dmore"){S.dmore=!S.dmore;render();}
