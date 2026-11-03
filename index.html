@@ -79,6 +79,12 @@ body.golive #app{padding-top:8px}
   padding:6px 16px;font-family:var(--f-ch);font-weight:600;font-size:17px;color:var(--fg);white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;opacity:0;animation:lpill 2.4s ease-out forwards}
 .lpill b{color:var(--chord);font-weight:600}
 .lpill .h{color:var(--muted);font-weight:500}
+/* Sangtittel på blekka (Live, første skjerm) */
+.shd{display:flex;flex-wrap:wrap;align-items:baseline;gap:.1em .55em;margin:0 0 .85em;padding-left:.95em;break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid}
+.sht,.shk{font-family:var(--f-ch);font-weight:600;font-size:1.4em;line-height:1.1;letter-spacing:.005em}
+.sht{color:var(--fg)}
+.shk{color:var(--chord)}
+.shm{font-family:var(--f-ch);font-weight:500;font-size:.82em;color:var(--muted);letter-spacing:.03em;white-space:nowrap}
 @keyframes lpill{0%{opacity:0}10%{opacity:1}75%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.lov{transition:none}}
 .btn.danger{border-color:var(--warn-line);color:var(--warn-fg)}
@@ -415,8 +421,11 @@ function cmpLines(sec,pl,ctx){var h="",i=0,L=sec.lines;
     var j=i,nt=0,nb=0;while(j<L.length&&pl.hide[j]){if(isBarLine(L[j]))nb++;else nt++;j++;}
     if(nt&&nb)h+='<div class="cmpm">… som '+esc(pl.ref.name||"over")+(nt>1?" ("+nt+" linjer)":"")+'</div>';i=j;}
   return h;}
-function sheetInner(song,ctx,part,cp){var inPart={};part.forEach(function(x){inPart[x.id]=1;});var pl=cp?planFor(song,part):null;
-  return part.map(function(s){var h=secHTML(song,s,ctx,inPart,pl);if(s.same&&!s.full)inPart[s.same]=1;return h;}).join("");}
+function headHTML(song,id,ctx){var m=[song.bpm?esc(song.bpm)+" BPM":"",esc(song.time||"4/4")].filter(function(x){return x;}).join(" · ");
+  return '<div class="shd"><span class="sht">'+esc(dname(song,id))+'</span><span class="shk">'+esc(ctx.curName)+'</span><span class="shm">'+m+'</span></div>';}
+function wantHead(e){return !!(S.live&&!S.edit&&e&&e.part===0);}
+function sheetInner(song,ctx,part,cp,hd){var inPart={};part.forEach(function(x){inPart[x.id]=1;});var pl=cp?planFor(song,part):null;
+  return (hd||"")+part.map(function(s){var h=secHTML(song,s,ctx,inPart,pl);if(s.same&&!s.full)inPart[s.same]=1;return h;}).join("");}
 function hasPlan(song,part){var p=planFor(song,part);for(var k in p)return true;return false;}
 function rampOf(sec){var e=Math.max(0,Math.min(5,sec.energy|0));if(sec.energy2==null||sec.energy2===""||+sec.energy2===e)return null;return [e,Math.max(0,Math.min(5,+sec.energy2))];}
 function rampStyle(r){return r?' style="border-image:linear-gradient(to bottom,var(--e'+r[0]+'),var(--e'+r[1]+')) 1"':"";}
@@ -608,8 +617,9 @@ function renderSong(){var L=screens();if(!L||!L.length){S.view="home";return ren
       '<div class="tt"><div class="ttl">'+esc(dname(song,ent.id))+'</div><span class="lmeta">'+lm+'</span></div>'+
       '<button class="kbtn'+(loc?" loc":"")+(S.qk?" on":"")+'" data-act="qk" aria-label="Endre toneart">'+esc(ctx.curName)+(loc?" •":"")+'</button>'+navR+'</div>'+
       (S.qk?qkHTML(song,ent,ctx):"")+'</div>';
-    var pk=S.list+"|"+S.idx;if(S.pillFor!==pk&&!S.prefit){S.pillFor=pk;if(!S.lov){var hint="";if(S.lhint){hint=' <span class="h">· trykk på skjermen for meny</span>';S.lhint=false;}
-      h+='<div class="lpill">'+esc(dname(song,ent.id))+' · <b>'+esc(ctx.curName)+'</b>'+hint+'</div>';}}}
+    var pk=S.list+"|"+S.idx;if(S.pillFor!==pk&&!S.prefit){S.pillFor=pk;if(!S.lov){var hint=S.lhint;S.lhint=false;
+      if(ent.part>0)h+='<div class="lpill">'+esc(dname(song,ent.id))+' · <b>'+esc(ctx.curName)+'</b>'+(hint?' <span class="h">· trykk på skjermen for meny</span>':"")+'</div>';
+      else if(hint)h+='<div class="lpill"><span class="h">Trykk på skjermen for meny</span></div>';}}}
   else h='<div class="bar">'+nav+'<div class="tt"><div class="ttl">'+esc(dname(song,ent.id))+'</div><div class="meta">'+meta+'</div></div>'+(S.edit?"":navR)+tools+'</div>';
   if(S.edit){var nu=setsUsing(ent.id).length;h+='<p class="ehint">Endringer gjelder <b>'+esc(dname(song,ent.id))+'</b> overalt'+(nu?' ('+nu+' '+(nu===1?"setliste":"setlister")+')':"")+'. Tonearten er egen per setliste. Spiller et annet band den annerledes: lag en egen versjon under Detaljer.</p>';}
   if(S.edit){var ectx=ctxFor(song,ent.item);ectx.nns=false;return h+(S.etab==="parts"?partsHTML(song,ectx):S.etab==="details"?editHTML(song,ent,ctx):chordsHTML(song,ectx));}
@@ -621,13 +631,13 @@ function renderSong(){var L=screens();if(!L||!L.length){S.view="home";return ren
   if((song.rig&&ent.part===0)||miss)h+='<div class="rig">'+(song.rig&&ent.part===0?'<span>Rigg: '+esc(song.rig)+'</span>':"")+(miss?'<span class="miss">'+esc(miss)+'</span>':"")+'</div>';
   if(S.panel&&!LV)h+=panelHTML(song,ctx);
   var cp=song.compact==="on";
-  return h+'<div id="sheet" class="sheet" data-cp="'+(cp?"1":"")+'">'+sheetInner(song,ctx,part,cp)+'</div>';}
+  return h+'<div id="sheet" class="sheet" data-cp="'+(cp?"1":"")+'">'+sheetInner(song,ctx,part,cp,wantHead(ent)?headHTML(song,ent.id,ctx):"")+'</div>';}
 
 var MAXF=28;
 var FC={};try{FC=JSON.parse(localStorage.getItem("lb.fit")||"{}")||{};}catch(e){FC={};}
 function saveFC(){clearTimeout(saveFC.t);saveFC.t=setTimeout(function(){try{if(Object.keys(FC).length>400)FC={};localStorage.setItem("lb.fit",JSON.stringify(FC));}catch(e){}},1500);}
 function hash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36);}
-function fitKey(e,song,W,H){var c=ctxFor(song,e.item);return [e.id,e.part,W,H,S.nns?1:0,c.shift,c.flat?1:0,S.fontsOK?1:0,MAXF,hash(JSON.stringify(song.sections))].join("|");}
+function fitKey(e,song,W,H){var c=ctxFor(song,e.item);return [e.id,e.part,W,H,S.nns?1:0,c.shift,c.flat?1:0,S.fontsOK?1:0,MAXF,wantHead(e)?1:0,hash(JSON.stringify([song.sections,song.title,song.ver,song.bpm,song.time]))].join("|");}
 /* Finner største skrift (maks MAXF) og antall kolonner som får delen til å passe på én skjerm. Resultatet caches, så gamle iPader slipper å regne på nytt. */
 function fitEl(sh,H,key){sh.classList.remove("scroll");sh.style.height=H+"px";
   var W=sh.clientWidth;var maxC=W>=1300?4:(W>=880?3:(W>=520?2:1));
@@ -640,7 +650,7 @@ function fitEl(sh,H,key){sh.classList.remove("scroll");sh.style.height=H+"px";
   function ok(f,nw){sh.style.fontSize=f+"px";return sh.scrollWidth<=sh.clientWidth+1&&sh.scrollHeight<=sh.clientHeight+1&&lnOK()&&(!nw||noWrap());}
   if(key&&key.f!=null){cols(key.c);if(!key.f){sh.style.fontSize="11px";sh.classList.add("scroll");return key;}return ok(key.f,false)?key:null;}
   function search(nw){var b=null;for(var c=1;c<=maxC;c++){cols(c);if(!ok(10,nw))continue;var lo=10,hi=MAXF;if(ok(hi,nw)){lo=hi;}else{while(hi-lo>0.4){var mid=(lo+hi)/2;if(ok(mid,nw))lo=mid;else hi=mid;}}
-    if(!b||lo>b.f+0.8)b={f:lo,c:c};if(lo>=MAXF)break;}return b;}
+    if(!b||lo>b.f*1.08)b={f:lo,c:c};if(lo>=MAXF)break;}return b;}
   var best=search(false);var flat=best?search(true):null;if(flat&&flat.f>=best.f*0.84)best=flat;
   var res=best?{f:Math.floor(best.f*10)/10,c:best.c}:{f:0,c:maxC};
   cols(res.c);if(res.f)sh.style.fontSize=res.f+"px";else{sh.style.fontSize="11px";sh.classList.add("scroll");}
@@ -649,7 +659,8 @@ var CPF=16;
 function fitSheet(sh,H,e,song){var mode=song.compact||"auto";var ctx=ctxFor(song,e.item);var part=partsOf(song)[e.part]||song.sections;
   sh.style.height=H+"px";var key=fitKey(e,song,sh.clientWidth,H)+"|"+mode;var hit=FC[key];
   function cpNow(){return sh.getAttribute("data-cp")==="1";}
-  function put(cp){if(cp===cpNow())return;sh.innerHTML=sheetInner(song,ctx,part,cp);sh.setAttribute("data-cp",cp?"1":"");}
+  var hd=wantHead(e)?headHTML(song,e.id,ctx):"";
+  function put(cp){if(cp===cpNow())return;sh.innerHTML=sheetInner(song,ctx,part,cp,hd);sh.setAttribute("data-cp",cp?"1":"");}
   if(hit){put(!!hit.cp);var rh=fitEl(sh,H,hit);if(rh)return rh;}
   var r1=fitEl(sh,H,null);r1.cp=cpNow();var res=r1;
   if(mode==="auto"&&!r1.cp&&r1.f<CPF&&hasPlan(song,part)){put(true);var r2=fitEl(sh,H,null);
