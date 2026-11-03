@@ -1,0 +1,1083 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Live-blekker</title>
+<meta name="theme-color" content="#15120e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Live-blekker">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preload" href="fonts/source-sans-3-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/barlow-semi-condensed-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/* Fontene ligger i appen, så alt virker uten nett. */
+@font-face{font-family:"Source Sans 3";font-style:normal;font-display:swap;font-weight:200 900;src:url(fonts/source-sans-3-latin-wght-normal.woff2) format("woff2")}
+@font-face{font-family:"Source Sans 3";font-style:italic;font-display:swap;font-weight:200 900;src:url(fonts/source-sans-3-latin-wght-italic.woff2) format("woff2")}
+@font-face{font-family:"Barlow Semi Condensed";font-style:normal;font-display:swap;font-weight:500;src:url(fonts/barlow-semi-condensed-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow Semi Condensed";font-style:normal;font-display:swap;font-weight:600;src:url(fonts/barlow-semi-condensed-latin-600-normal.woff2) format("woff2")}
+/* Synk-status og oppkobling */
+.sync{font-family:var(--f-ch);font-weight:500;font-size:14px;color:var(--muted);display:inline-flex;align-items:center;gap:7px}
+.sync::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--chord)}
+.sync.wait::before{background:#d9b35f}.sync.bad{color:var(--warn-fg)}.sync.bad::before{background:var(--warn-line)}
+.setup{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;max-width:620px;line-height:1.5}
+.setup h2{font-family:var(--f-ch);font-weight:600;font-size:22px;margin:0 0 8px}
+.setup p{color:var(--muted);margin:0 0 14px}
+.setup label{display:block;font-family:var(--f-ch);font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.setup input{width:100%}
+.setup .row{display:flex;gap:10px;align-items:center;margin-top:18px;flex-wrap:wrap}
+.setup .err{color:var(--warn-fg);margin-top:12px}
+.setup .tip{margin-top:16px;font-size:15px;border-top:1px solid var(--line);padding-top:12px}
+/* Endringer som venter på å bli sendt: prikk på «Oversikt» (ikke i Live) */
+html[data-q] .bar:not(.lbar) .back::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#d9b35f;margin-left:8px;vertical-align:middle}
+/* Notestativ på scenen: én sang = én skjerm, kolonner tilpasses automatisk, energistripe langs hver del. Bevisst kun mørkt tema (scenebruk). */
+:root{
+  color-scheme:dark;
+  --bg:#15120e; --panel:#1e1913; --raise:#292219; --line:#3b3329;
+  --fg:#ede5d7; --muted:#9b9080; --chord:#a9c79b;
+  --warn-bg:#3d1913; --warn-fg:#ffb7a5; --warn-line:#a9412f;
+  --kon:#dd5549; --kw:#e9e2d5; --kb:#120f0b; --kl:#5f574c;
+  --e0:#4a4339; --e1:#6f9f7a; --e2:#a3b46a; --e3:#d6a94c; --e4:#dd8045; --e5:#d9514a;
+  --k-vers:#7fa893; --k-pre:#66aaa4; --k-ref:#a2cc7e; --k-bro:#c4c066; --k-ins:#8b8274;  --f-lyr:"Source Sans 3","Helvetica Neue",Arial,sans-serif;
+  --f-ch:"Barlow Semi Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-lyr);margin:0;padding-block:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));-webkit-text-size-adjust:100%}
+body.live{overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body.live #app{touch-action:pan-y}
+#app{min-height:100%}
+html{-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+input,textarea,select,a{touch-action:manipulation}
+.btn{font-family:var(--f-ch);font-weight:600;font-size:16px;letter-spacing:.02em;background:var(--raise);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;min-height:40px;-webkit-tap-highlight-color:transparent}
+.btn.on{border-color:var(--chord);color:var(--chord)}
+.btn:active{background:var(--line);transform:scale(.97)}
+.btn.ghost{background:transparent}
+.btn.danger{border-color:var(--warn-line);color:var(--warn-fg)}
+.btn:focus-visible,.tab:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--chord);outline-offset:2px}
+input,textarea,select{font-family:var(--f-lyr);font-size:16px;background:var(--raise);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;box-sizing:border-box;max-width:100%}
+textarea{width:100%;line-height:1.45;resize:vertical}
+.lbl{font-family:var(--f-ch);font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+
+/* Oversikt */
+.home{max-width:920px;margin:0 auto;padding:20px 0 48px}
+.hh{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px}
+.htabs{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px;gap:4px}
+.htab{font-family:var(--f-ch);font-weight:600;font-size:17px;letter-spacing:.02em;border:0;background:transparent;color:var(--muted);border-radius:999px;padding:6px 20px;min-height:44px}
+.htab.on{background:var(--raise);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
+.htab .ct{font-size:14px;font-weight:500;color:var(--muted);margin-left:7px;font-variant-numeric:tabular-nums}
+.th{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 12px;min-height:40px}
+.th h2{font-family:var(--f-ch);font-weight:600;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0}
+.th+.th,.past{margin-top:26px}
+.scard{display:flex;flex-wrap:wrap;align-items:center;gap:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.scard.next{border-color:rgba(169,199,155,.5)}
+.sc-main{flex:1 1 320px;min-width:0;display:flex;align-items:center;gap:16px;background:none;border:0;padding:0;text-align:left;color:var(--fg)}
+.sc-date{flex:none;width:60px;height:60px;border-radius:12px;background:var(--raise);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.sc-date b{font-family:var(--f-ch);font-weight:600;font-size:27px;color:var(--chord)}
+.sc-date span{font-family:var(--f-ch);font-weight:500;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+.sc-body{min-width:0;display:flex;flex-direction:column;gap:3px}
+.sc-name{font-size:21px;font-weight:500;line-height:1.15}
+.sc-meta{font-family:var(--f-ch);font-weight:500;font-size:15px;color:var(--muted)}
+.sc-meta .nx{color:var(--chord);font-weight:600}
+.sc-songs{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-act{display:flex;gap:8px;flex:none;margin-left:auto}
+.btn.live{background:var(--chord);border-color:var(--chord);color:#14110d;min-width:96px}
+.past .scard{padding:8px 12px;background:transparent}
+.past .sc-date{width:48px;height:48px}.past .sc-date b{font-size:21px}
+.past .sc-name{font-size:18px}
+.lsrch{margin:0 0 8px}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.pn .ph{font-size:13px;color:var(--muted);margin:0 0 8px;line-height:1.4}
+.pchs{display:flex;flex-wrap:wrap;gap:6px 8px}
+.pch{display:flex;flex-direction:column;gap:1px;background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:5px 10px;min-width:64px}
+.pcn{font-family:var(--f-ch);font-weight:600;font-size:17px;color:var(--chord)}
+.pcv{font-family:var(--f-ch);font-weight:500;font-size:15px;letter-spacing:.03em}
+.pcv .op{color:var(--muted)}
+.pch .bs{font-size:12px;color:var(--muted)}
+.pcom{display:flex;flex-wrap:wrap;align-items:center;gap:8px 22px;margin-top:10px}
+.pcom .pl{font-size:13px;color:var(--muted)}
+.pcom .big{font-family:var(--f-ch);font-weight:600;font-size:22px;color:var(--kon);letter-spacing:.04em}
+.pcom .alm{font-family:var(--f-ch);font-weight:600;font-size:17px;color:var(--e3)}
+.kal{fill:var(--kw);stroke:var(--e3);stroke-width:2}
+.kbl{fill:#5a3b12;stroke:var(--e3);stroke-width:1.2}
+.qk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 12px;margin:0 0 8px}
+.qk .kv{font-family:var(--f-ch);font-weight:600;font-size:24px;color:var(--chord);min-width:46px;text-align:center}
+.qk .hint{flex:1 1 200px}
+.kbtn{font-family:var(--f-ch);font-weight:600;font-size:17px;color:var(--chord);background:transparent;border:1px solid var(--line);border-radius:6px;padding:0 8px;min-height:32px;margin-left:2px}
+.kbtn.loc{border-color:var(--e3);color:var(--e3)}
+.lbar .lmeta{display:inline-flex;align-items:center;gap:6px}
+.swr{min-height:44px;margin-left:6px}
+.swr.on{border-color:var(--e3);color:var(--e3)}
+.dh{font-family:var(--f-ch);font-weight:600;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:18px 0 4px}
+button.prow{width:100%;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;color:var(--fg);font:inherit;cursor:pointer}
+.prow .st{width:6px;align-self:stretch;min-height:24px;border-radius:3px;background:var(--e0);flex:none}
+.prow .chev{color:var(--muted);font-size:18px;margin-left:auto}
+.dpan{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:6px 0 12px}
+.dpan .fl .lbl{min-width:120px}
+.ktop{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 22px}
+.ktop .fld input{width:90px}
+.lcl{background:var(--panel);border:1px solid var(--e3);border-radius:10px;padding:10px 14px;margin:0 0 16px;font-size:15px}
+.lcl b{color:var(--e3)}
+[hidden]{display:none!important}
+label.btn{display:inline-flex;align-items:center;justify-content:center}
+.brand .stag{color:#14110d}
+.stag{font-family:var(--f-ch);font-weight:600;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#14110d;background:var(--chord);border-radius:5px;padding:2px 7px;margin-left:10px;vertical-align:middle}
+.dat{font-size:13px;color:var(--muted)}
+.vtag{color:var(--muted);font-weight:400}
+.hf{margin-top:40px;border-top:1px solid var(--line);padding-top:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hf .lbl{margin-right:6px}
+.vsel{font-family:var(--f-ch);font-size:15px;padding:5px 8px;max-width:150px}
+.ehint{font-size:13px;color:var(--muted);margin:0 0 8px}
+.ehint b{color:var(--fg);font-weight:600}
+.lbar{padding:6px 0 4px}
+.lbar .ttl{font-size:22px}
+.lmeta{font-family:var(--f-ch);font-weight:500;font-size:17px;color:var(--muted);margin-left:10px}
+.lmeta b{color:var(--chord);font-weight:600}
+.lx.ask{border-color:var(--warn-line);color:var(--warn-fg)}
+.cmpn{font-size:.72em;color:var(--chord);opacity:.85;font-style:italic}
+.cmpm{font-size:.78em;color:var(--muted);font-style:italic;margin-bottom:.22em}
+@media (max-width:600px){.htab{padding:6px 14px}.sc-act{width:100%}.sc-act .btn{flex:1}}
+.brand{font-family:var(--f-ch);font-weight:600;font-size:32px;line-height:1;letter-spacing:.01em;margin:0}
+.brand span{color:var(--chord)}
+.sub{color:var(--muted);margin:6px 0 0;font-size:15px}
+.grp{margin:0 0 28px}
+.gh{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:4px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line)}
+.row .main{flex:1;min-width:0;text-align:left;background:none;border:0;padding:0;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.date{font-family:var(--f-ch);font-weight:600;font-size:15px;color:var(--chord);min-width:92px;font-variant-numeric:tabular-nums}
+.rt{font-size:18px}
+.rm{color:var(--muted);font-size:14px}
+.kchip{font-family:var(--f-ch);font-weight:600;color:var(--chord);font-size:15px;min-width:34px;text-align:right}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0 12px}
+.box .it{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.box .it:last-of-type{border-bottom:0}
+.box .it .n{flex:1;min-width:0}
+.fl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.sm{min-height:34px;padding:4px 10px;font-size:15px}
+.letter{font-family:var(--f-ch);font-weight:600;font-size:15px;color:var(--chord);letter-spacing:.06em;padding:20px 4px 4px;border-bottom:1px solid var(--line)}
+.letter.first{padding-top:6px}
+.tempo{font-family:var(--f-ch);font-weight:500;color:var(--muted);font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.srch{width:100%;margin-top:12px}
+.reslist{max-height:280px;overflow-y:auto;margin-top:4px;-webkit-overflow-scrolling:touch}
+.res{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:9px 4px;font-size:16px;color:var(--fg)}
+.res:last-child{border-bottom:0}
+.msg{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;color:var(--muted);line-height:1.5}
+
+/* Sangvisning */
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:8px 0 6px}
+.bar .btn{min-height:42px}
+.back{order:1;flex:none}
+.tt{order:2;min-width:0;flex:1 1 160px}
+.tools{order:3;display:flex;gap:6px;flex:none}
+.navg{order:4;display:flex;align-items:center;gap:6px;margin-left:auto;flex:none}
+.ic{min-width:42px;padding:0;font-size:22px;line-height:1}
+.nxt{display:flex;align-items:center;gap:10px;text-align:left;width:230px;max-width:230px;padding:3px 10px 3px 12px}
+.nxt .nw{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.15}
+.nxt .n1{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.nxt .n2{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nxt .ar{font-size:24px;line-height:1;color:var(--chord)}
+@media (max-width:899px){.tools{order:5;flex-basis:100%;justify-content:flex-end}}
+@media (max-width:639px){.tt{flex-basis:calc(100% - 140px)}.tools{order:3;flex-basis:auto;justify-content:flex-start;gap:4px}.tools .btn{padding:4px 9px;font-size:15px}.navg{order:4;gap:4px}.pos{display:none}.nxt{width:150px;max-width:150px}}
+.ttl{font-family:var(--f-ch);font-weight:600;font-size:23px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{font-family:var(--f-ch);font-size:16px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta b{color:var(--chord);font-weight:600}
+.pos{font-family:var(--f-ch);font-weight:600;font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums}
+.warn{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn-fg);border-radius:8px;padding:7px 12px;margin:0 0 6px;font-family:var(--f-ch);font-weight:600;font-size:22px;letter-spacing:.02em}
+.warn .wl{font-size:13px;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
+.rig{font-size:14px;color:var(--muted);margin:0 0 6px;display:flex;flex-wrap:wrap;gap:4px 14px}
+.rig .miss{color:var(--e3)}
+.pn{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px 10px;margin:0 0 8px}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+.tab{flex:none;font-family:var(--f-ch);font-weight:600;font-size:14px;background:transparent;border:1px solid var(--line);border-radius:6px;padding:4px 10px;color:var(--muted);min-height:32px}
+.tab.on{color:var(--fg);border-color:var(--chord)}
+.dg{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:4px}
+.dia .dn{font-family:var(--f-ch);font-weight:600;font-size:17px;color:var(--chord);margin-bottom:2px}
+.dia svg{display:block}
+.dia .nl{font-size:12px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+.mv{color:var(--kon);font-weight:700}
+.kw{fill:var(--kw);stroke:var(--kl);stroke-width:.6}
+.kb{fill:var(--kb)}
+.kon{fill:var(--kon)}
+.kbs{fill:var(--chord)}
+.held{font-size:13px;color:var(--muted);margin-top:6px}
+.held b{color:var(--fg)}
+
+.sheet{overflow:hidden;column-gap:1.6em;-webkit-column-gap:1.6em;column-rule:1px solid var(--line);-webkit-column-rule:1px solid var(--line);font-size:18px}
+.sheet.scroll{overflow:visible;height:auto!important}
+.sec{display:inline-block;width:100%;box-sizing:border-box;border-left:.3em solid var(--e0);padding:.05em 0 .1em .55em;margin:0 0 .6em;break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid;--ec:var(--e0);--kc:var(--k-ins);border-radius:0}
+.sec.k-vers{--kc:var(--k-vers)} .sec.k-pre{--kc:var(--k-pre)} .sec.k-ref{--kc:var(--k-ref)} .sec.k-bro{--kc:var(--k-bro)}
+.sec.rpt .sh{margin:0}
+.sec.e1{border-left-color:var(--e1);--ec:var(--e1)} .sec.e2{border-left-color:var(--e2);--ec:var(--e2)} .sec.e3{border-left-color:var(--e3);--ec:var(--e3)} .sec.e4{border-left-color:var(--e4);--ec:var(--e4)} .sec.e5{border-left-color:var(--e5);--ec:var(--e5)}
+.sec.sel{outline:1px solid var(--muted);outline-offset:-1px}
+.sh{display:flex;flex-wrap:wrap;align-items:center;gap:.2em .5em;margin-bottom:.2em}
+.sn{font-family:var(--f-ch);font-weight:600;font-size:.8em;letter-spacing:.07em;text-transform:uppercase;background:var(--kc);color:#14110d;border-radius:.25em;padding:.02em .45em}
+.after{font-family:var(--f-ch);font-weight:500;font-size:.85em;color:var(--fg);margin-top:.15em}
+.rep{font-family:var(--f-ch);font-weight:600;font-size:.75em;border:1px solid var(--line);border-radius:.3em;padding:0 .35em}
+.note{font-size:.75em;color:var(--muted);font-style:italic}
+.cue{font-family:var(--f-ch);font-weight:600;font-size:.78em;border:1px solid var(--ec);border-radius:.3em;padding:0 .4em}
+.ln{display:flex;flex-wrap:wrap;align-items:flex-end;line-height:1.22;margin-bottom:.22em}
+.wd{display:inline-flex;align-items:flex-end}
+.sg{display:inline-flex;flex-direction:column}
+.c{font-family:var(--f-ch);font-weight:500;color:var(--chord);font-size:.95em;padding-right:.3em;white-space:nowrap}
+.t{white-space:pre;font-weight:350;font-size:.92em}
+.tx .t{white-space:pre-wrap}
+.bars{display:block;line-height:1.3}
+.bars .c{padding:0 .2em}
+.bt{white-space:pre;color:var(--muted)}
+.cmp{line-height:1.3}
+.cmp .som{font-size:.75em;color:var(--muted);font-style:italic;margin-right:.4em}
+.cmp .dv{color:var(--muted);margin:0 .35em}
+sup{font-size:.6em;line-height:0}
+
+/* Redigering */
+.ed{max-width:900px;margin:0 auto;padding:4px 0 60px}
+.ef{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 12px}
+.ef h3{font-family:var(--f-ch);font-weight:600;font-size:18px;margin:0 0 8px;letter-spacing:.02em}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld input,.fld textarea{width:100%}
+.en{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.eb{width:40px;height:36px;border-radius:6px;border:2px solid transparent;font-family:var(--f-ch);font-weight:600;color:#15120e}
+.eb.on{border-color:var(--fg)}
+.eb0{background:var(--e0);color:var(--fg)} .eb1{background:var(--e1)} .eb2{background:var(--e2)} .eb3{background:var(--e3)} .eb4{background:var(--e4)} .eb5{background:var(--e5)}
+.kt{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.kt .kv{font-family:var(--f-ch);font-weight:600;font-size:26px;color:var(--chord);min-width:48px;text-align:center}
+.hint{font-size:13px;color:var(--muted);line-height:1.45}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:15px}
+.epal{position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--panel);border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.epal .el{font-family:var(--f-ch);font-weight:600;font-size:15px;color:var(--muted);margin-right:auto;min-width:0}
+.epal .el b{color:var(--fg)}
+.sw{width:52px;height:44px;border-radius:8px;border:2px solid transparent;font-family:var(--f-ch);font-weight:600;font-size:16px;color:#15120e}
+.sw.on{border-color:var(--fg)}
+.sw0{background:var(--e0);color:var(--fg)} .sw1{background:var(--e1)} .sw2{background:var(--e2)} .sw3{background:var(--e3)} .sw4{background:var(--e4)} .sw5{background:var(--e5)}
+body.emode .sec{cursor:pointer}
+.sec.esel{outline:2px solid var(--fg);outline-offset:2px}
+.toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--raise);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:8px 14px;font-family:var(--f-ch);font-weight:600;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+.toast.bad{border-color:var(--warn-line);color:var(--warn-fg)}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+/* Redigering: akkorder og deler */
+.btn[disabled]{opacity:.35;pointer-events:none}
+.btn.pri{background:var(--chord);border-color:var(--chord);color:#14110d}
+.esheet{font-size:21px;margin-top:4px;overflow:visible}
+.esheet .sec{display:block;margin-bottom:.9em}
+.esheet .sg{align-items:flex-start}
+.esheet .c.ech{cursor:pointer;border-radius:.25em;background:rgba(169,199,155,.13);padding:.04em .3em;margin-right:.2em}
+.esheet .bars .c.ech{margin:0 .15em}
+.esheet .c.csel{background:var(--chord);color:#14110d}
+.ec{cursor:pointer;border-radius:2px}
+.ec.icar{background:rgba(214,169,76,.32);box-shadow:inset 2px 0 0 var(--e3)}
+.eend{color:var(--muted);opacity:.55;padding:0 .4em;font-size:.85em}
+.esame{font-size:.8em;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:.4em .8em}
+.pgdiv{font-family:var(--f-ch);font-weight:600;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-top:1px dashed var(--line);padding-top:6px;margin:4px 0 10px}
+body.echords{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.cbar{display:flex;flex-direction:column;gap:8px;width:100%}
+.cb1{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.cb1 .el{margin-right:2px}
+.cin{width:130px;font-family:var(--f-ch);font-weight:600;font-size:19px;color:var(--chord)}
+.cin.bad{border-color:var(--warn-line)}
+.picks{display:flex;flex-wrap:wrap;gap:6px}
+.pk{font-family:var(--f-ch);font-weight:500;font-size:17px;color:var(--chord);background:transparent;border:1px solid var(--line);border-radius:6px;min-width:44px;min-height:38px;padding:2px 9px}
+.pk:active{background:var(--line)}
+.plist{display:flex;flex-direction:column}
+.prow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:7px 4px;border-bottom:1px solid var(--line);--kc:var(--k-ins);transition:background .6s}
+.prow.k-vers{--kc:var(--k-vers)} .prow.k-pre{--kc:var(--k-pre)} .prow.k-ref{--kc:var(--k-ref)} .prow.k-bro{--kc:var(--k-bro)}
+.prow.flash{background:rgba(169,199,155,.16)}
+.prow .sn{font-size:15px}
+.prow .pinfo{flex:1 1 120px;min-width:0;font-size:15px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .pb{display:flex;flex-wrap:wrap;gap:4px;margin-left:auto}
+.prow .btn{min-height:40px}
+.prow .ic{font-size:19px}
+.pick{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:6px 0 10px}
+.pick .fl{margin-top:6px}
+@media (max-width:600px){.ttl{font-size:20px}.warn{font-size:18px}.date{min-width:0}}
+</style>
+
+</head>
+<body>
+<div id="app"><div class="home"><p class="brand">Live<span>-</span>blekker</p><p class="sub">Henter sanger …</p></div></div>
+<div id="epal" class="epal" hidden></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+/* Samme kode brukes til to sider: redigeringsappen (med skylagring) og Scene-appen (SCENE = data bakt inn, ingen skylagring, alltid Live). */
+var SCENE=!!(window.__SCENE&&window.__SCENE.songs);
+var SHARP=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+var FLAT=["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
+var PC={C:0,"B#":0,"C#":1,Db:1,D:2,"D#":3,Eb:3,E:4,Fb:4,F:5,"E#":5,"F#":6,Gb:6,G:7,"G#":8,Ab:8,A:9,"A#":10,Bb:10,B:11,Cb:11,H:11};
+var MAJ=["C","Db","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+var MIN=["Cm","C#m","Dm","Ebm","Em","Fm","F#m","Gm","G#m","Am","Bbm","Bm"];
+var FLATKEY={F:1,Bb:1,Eb:1,Ab:1,Db:1,Gb:1,Dm:1,Gm:1,Cm:1,Fm:1,Bbm:1,Ebm:1};
+var DEG=["1","b2","2","b3","3","4","#4","5","b6","6","b7","7"];
+var DOW=["søn.","man.","tir.","ons.","tor.","fre.","lør."];
+var MON=["jan.","feb.","mars","apr.","mai","juni","juli","aug.","sep.","okt.","nov.","des."];
+var QT={"":[0,4,7],"m":[0,3,7],"min":[0,3,7],"-":[0,3,7],"5":[0,7],"2":[0,2,7],"add2":[0,2,4,7],"add9":[0,2,4,7],"sus2":[0,2,7],"4":[0,5,7],"sus4":[0,5,7],"sus":[0,5,7],"6":[0,4,7,9],"m6":[0,3,7,9],"7":[0,4,7,10],"m7":[0,3,7,10],"-7":[0,3,7,10],"min7":[0,3,7,10],"maj7":[0,4,7,11],"M7":[0,4,7,11],"maj9":[0,2,4,7,11],"9":[0,2,4,7,10],"m9":[0,2,3,7,10],"m2":[0,2,3,7],"madd9":[0,2,3,7],"madd2":[0,2,3,7],"m4":[0,3,5,7],"7sus4":[0,5,7,10],"7sus":[0,5,7,10],"dim":[0,3,6],"dim7":[0,3,6,9],"m7b5":[0,3,6,10],"aug":[0,4,8],"+":[0,4,8],"2sus4":[0,2,5,7],"sus2sus4":[0,2,5,7],"maj7#11":[0,4,6,7,11],"m11":[0,3,5,7,10],"11":[0,5,7,10],"13":[0,4,7,9,10],"6add9":[0,2,4,7,9],"69":[0,2,4,7,9],"add4":[0,4,5,7],"add11":[0,4,5,7],"2add4":[0,2,4,5,7]};
+
+var S={db:null,dl:null,songs:{},sets:{},got:{songs:false,sets:false},err:null,slow:false,
+  view:"home",list:null,idx:0,edit:false,draft:null,nns:false,panel:false,psid:null,
+  openSet:null,newSet:false,askDel:null,wake:null,wantWake:false,
+  etab:"chords",hist:[],utag:null,htab:"sets",lq:"",live:false,lexit:false,csel:null,ccar:null,addAt:null,flash:null,focusSec:null,fontsOK:false};
+
+function $(id){return document.getElementById(id);}
+function md(x){return ((x%12)+12)%12;}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
+function clone(o){return JSON.parse(JSON.stringify(o));}
+function lsGet(){try{return JSON.parse(localStorage.getItem("lb.v1")||"{}");}catch(e){return {};}}
+function lsSet(){try{localStorage.setItem("lb.v1",JSON.stringify({view:S.view,list:S.list,idx:S.idx,nns:S.nns,panel:S.panel,tapNav:S.tapNav,htab:S.htab,live:S.live}));}catch(e){}}
+(function(){var p=lsGet();if(p.view)S.view=p.view;if(p.list)S.list=p.list;if(typeof p.idx==="number")S.idx=p.idx;S.nns=!!p.nns;S.panel=!!p.panel;S.tapNav=p.tapNav!==false;S.htab=p.htab==="songs"?"songs":"sets";S.live=false;})();
+
+function toast(msg,bad,hold){var t=$("toast");var ep=$("epal");t.style.bottom=ep&&!ep.hidden?(ep.offsetHeight+12)+"px":"";toast.until=hold?Date.now()+hold:0;t.textContent=msg;t.className="toast show"+(bad?" bad":"");clearTimeout(toast.h);toast.h=setTimeout(function(){t.className="toast"+(bad?" bad":"");},hold||(bad?4000:1400));}
+
+/* ---------- akkorder ---------- */
+function parseKey(k){var m=/^([A-H][#b]?)(m?)/.exec(k||"C");if(!m||PC[m[1]]==null)return {pc:0,minor:false};return {pc:PC[m[1]],minor:!!m[2]};}
+function keyName(pc,minor){return minor?MIN[md(pc)]:MAJ[md(pc)];}
+function parseChord(c){var m=/^([A-H])([#b]?)([^\/]*)(?:\/([A-H][#b]?))?$/.exec(String(c).trim());if(!m)return null;var r=PC[m[1]+m[2]];if(r==null)r=PC[m[1]];var b=m[4]!=null?PC[m[4]]:null;return {r:r,q:m[3]||"",b:b==null?null:b};}
+function tones(p){var q=p.q.replace(/[()]/g,"");var iv=QT[q];
+  if(!iv){var minor=/^(m|min|-)(?!aj)/.test(q);iv=minor?[0,3,7]:[0,4,7];
+    if(/sus4|sus(?!2)/.test(q)){iv=[0,5,7];}else if(/sus2/.test(q)){iv=[0,2,7];}
+    if(/maj7|M7|maj9|maj13/.test(q))iv=iv.concat([11]);else if(/7|9|11|13/.test(q)&&!/add/.test(q))iv=iv.concat([10]);
+    if(/9|add2|add9/.test(q))iv=iv.concat([2]);if(/6|13/.test(q))iv=iv.concat([9]);if(/dim|°/.test(q))iv=[0,3,6];if(/aug|\+/.test(q))iv=[0,4,8];}
+  var out=[];iv.forEach(function(x){var v=md(p.r+x);if(out.indexOf(v)<0)out.push(v);});return out;}
+function ctxFor(song,item){var orig=parseKey(song.key);var curName=(item&&item.key)||song.playKey||song.key||"C";var cur=parseKey(curName);
+  return {orig:orig,cur:cur,curName:curName,shift:md(cur.pc-orig.pc),flat:!!FLATKEY[curName],nns:S.nns};}
+function noteName(pc,ctx){return (ctx.flat?FLAT:SHARP)[md(pc)];}
+function chordHTML(c,ctx){var p=parseChord(c);if(!p)return esc(c);
+  if(ctx.nns){var q=esc(p.q).replace(/(\d+)$/,"<sup>$1</sup>");return DEG[md(p.r-ctx.orig.pc)]+q+(p.b!=null?"/"+DEG[md(p.b-ctx.orig.pc)]:"");}
+  return noteName(p.r+ctx.shift,ctx)+esc(p.q)+(p.b!=null?"/"+noteName(p.b+ctx.shift,ctx):"");}
+function chordText(c,ctx){return chordHTML(c,ctx).replace(/<[^>]+>/g,"");}
+
+/* ---------- linjer ---------- */
+function segs(s){var out=[],re=/\[([^\]]+)\]/g,m,ch="",i=0;s=String(s);
+  while((m=re.exec(s))){var t=s.slice(i,m.index);if(t||ch)out.push({c:ch,t:t});ch=m[1];i=re.lastIndex;}
+  var rest=s.slice(i);if(rest||ch)out.push({c:ch,t:rest});return out;}
+function chordsOf(s){var out=[],re=/\[([^\]]+)\]/g,m;while((m=re.exec(String(s))))out.push(m[1]);return out;}
+function isBarLine(s){var lyr=String(s).replace(/\[[^\]]*\]/g,"");return chordsOf(s).length>0&&/^[\s|.\-–x×X\d:\/()%]*$/.test(lyr);}
+function lineHTML(s,ctx){var sg=segs(s);var has=sg.some(function(x){return x.c;});
+  if(!String(s).trim())return "";
+  if(has&&isBarLine(s))return '<div class="ln bars">'+sg.map(function(x){return (x.c?'<b class="c">'+chordHTML(x.c,ctx)+'</b>':"")+(x.t?'<span class="bt">'+esc(x.t)+'</span>':"");}).join("")+'</div>';
+  if(!has)return '<div class="ln tx"><span class="t">'+esc(s)+'</span></div>';
+  var groups=[],cur=[];sg.forEach(function(x){cur.push(x);if(/\s$/.test(x.t)){groups.push(cur);cur=[];}});if(cur.length)groups.push(cur);
+  return '<div class="ln">'+groups.map(function(g){return '<span class="wd">'+g.map(function(x){return '<span class="sg"><b class="c">'+(x.c?chordHTML(x.c,ctx):"&#8203;")+'</b><span class="t">'+(x.t?esc(x.t):"&#8203;")+'</span></span>';}).join("")+'</span>';}).join("")+'</div>';}
+function findSec(song,id){for(var i=0;i<song.sections.length;i++)if(song.sections[i].id===id)return song.sections[i];return null;}
+function cues(sec){return String(sec.cue||"").split(/\s*[;·]\s*/).filter(function(x){return x;});}
+function kindOf(n){n=String(n||"").toLowerCase();if(/pre/.test(n))return "pre";if(/refr|chorus|^ref\b|^tag/.test(n))return "ref";if(/vers/.test(n))return "vers";if(/bro|bridge/.test(n))return "bro";return "ins";}
+function repText(r){return String(r).replace(/^\s*(\d+)\s*[xX×]\s*$/,"×$1").replace(/^\s*[xX×]\s*(\d+)\s*$/,"×$1");}
+/* Kompakt visning (som «Show repeated chords: off» i PraiseCharts): akkorder og takter som er like som i en tidligere del av samme type på skjermen, skjules. Det som står igjen, er det som er annerledes. */
+function lyrOf(l){return String(l).replace(/\[[^\]]*\]/g,"").replace(/\s+/g," ").trim().toLowerCase();}
+function chEq(a,b){var x=chordsOf(a),y=chordsOf(b||"");if(!x.length||x.length!==y.length)return false;for(var i=0;i<x.length;i++)if(x[i]!==y[i])return false;return true;}
+function planFor(song,part){var out={},seen=[];
+  part.forEach(function(sec){if(sec.same||!sec.lines||!sec.lines.length)return;var k=sec.kind||kindOf(sec.name);var best=null,bs=0;var bar0=sec.lines.some(function(l){return isBarLine(l);});
+    seen.forEach(function(r){if((r.kind||kindOf(r.name))!==k)return;var n=Math.min(r.lines.length,sec.lines.length),m=0,ov=0;
+      for(var i=0;i<n;i++){var a=sec.lines[i],b=r.lines[i];if(chordsOf(a).length){ov++;if(chEq(a,b))m++;}else if(bar0&&lyrOf(a)){ov++;if(!chordsOf(b).length&&lyrOf(a)===lyrOf(b))m++;}}
+      if(m>bs&&m>=Math.max(1,Math.ceil(ov*0.5))){bs=m;best=r;}});
+    if(best){var bar=sec.lines.some(function(l){return isBarLine(l);});var hide=[],lyr=[],anyC=false,anyT=false;
+      sec.lines.forEach(function(l,i){var b=best.lines[i];hide[i]=false;lyr[i]=false;if(b==null)return;
+        if(isBarLine(l)){if(isBarLine(b)&&chEq(l,b)){hide[i]=true;anyC=true;}}
+        else if(chordsOf(l).length){if(chEq(l,b)){lyr[i]=true;anyC=true;}}
+        else if(bar&&!chordsOf(b).length&&lyrOf(l)&&lyrOf(l)===lyrOf(b)){hide[i]=true;anyT=true;}});
+      if(!sec.lines.some(function(l,i){return !hide[i];})){sec.lines.forEach(function(l,i){if(!isBarLine(l))hide[i]=false;});anyT=false;}
+      if(anyC||anyT)out[sec.id]={ref:best,hide:hide,lyr:lyr,note:(anyC&&anyT?"som ":anyT?"tekst som ":"akkorder som ")+(best.name||"")};}
+    seen.push(sec);});
+  return out;}
+function cmpLines(sec,pl,ctx){var h="",i=0,L=sec.lines;
+  while(i<L.length){if(!pl.hide[i]){h+=pl.lyr[i]?'<div class="ln tx lyr"><span class="t">'+esc(String(L[i]).replace(/\[[^\]]*\]/g,"").replace(/\s{2,}/g," ").trim())+'</span></div>':lineHTML(L[i],ctx);i++;continue;}
+    var j=i,nt=0,nb=0;while(j<L.length&&pl.hide[j]){if(isBarLine(L[j]))nb++;else nt++;j++;}
+    if(nt&&nb)h+='<div class="cmpm">… som '+esc(pl.ref.name||"over")+(nt>1?" ("+nt+" linjer)":"")+'</div>';i=j;}
+  return h;}
+function sheetInner(song,ctx,part,cp){var inPart={};part.forEach(function(x){inPart[x.id]=1;});var pl=cp?planFor(song,part):null;
+  return part.map(function(s){var h=secHTML(song,s,ctx,inPart,pl);if(s.same&&!s.full)inPart[s.same]=1;return h;}).join("");}
+function hasPlan(song,part){var p=planFor(song,part);for(var k in p)return true;return false;}
+function rampOf(sec){var e=Math.max(0,Math.min(5,sec.energy|0));if(sec.energy2==null||sec.energy2===""||+sec.energy2===e)return null;return [e,Math.max(0,Math.min(5,+sec.energy2))];}
+function rampStyle(r){return r?' style="border-image:linear-gradient(to bottom,var(--e'+r[0]+'),var(--e'+r[1]+')) 1"':"";}
+function secHTML(song,sec,ctx,inPart,plan){var orig=sec.same?findSec(song,sec.same):null;var e=Math.max(0,Math.min(5,sec.energy|0));var rp=rampOf(sec);var pl=plan&&!orig?plan[sec.id]:null;
+  var target=orig?orig.id:sec.id;var rpt=!!(orig&&!sec.full&&(!inPart||inPart[orig.id]));var k=sec.kind||kindOf(sec.name||(orig&&orig.name));
+  var h='<div class="sh"><span class="sn">'+esc(sec.name||"Del")+'</span>'+(sec.rep?'<span class="rep">'+esc(repText(sec.rep))+'</span>':"")+
+    cues(sec).map(function(c){return '<span class="cue">'+esc(c)+'</span>';}).join("")+(sec.note?'<span class="note">'+esc(sec.note)+'</span>':"")+(pl?'<span class="cmpn">'+esc(pl.note)+'</span>':"")+'</div>';
+  var body=rpt?"":pl?cmpLines(sec,pl,ctx):((orig||sec).lines||[]).map(function(l){return lineHTML(l,ctx);}).join("");
+  if(pl&&body.indexOf('class="cmpm"')>=0)h=h.replace(/<span class="cmpn">[^<]*<\/span>/,"");
+  var after=sec.after?'<div class="after">'+esc(sec.after)+'</div>':"";
+  return '<section class="sec k-'+k+' e'+e+(rpt?" rpt":"")+(S.emode&&S.esel===sec.id?" esel":"")+'"'+rampStyle(rp)+' data-sid="'+esc(target)+'" data-own="'+esc(sec.id)+'">'+h+body+after+'</section>';}
+
+/* ---------- voicing / pianohjelp ---------- */
+function voiceSeq(list,shift){var prev=null,out=[];
+  list.forEach(function(p){var pcs=tones(p).map(function(x){return md(x+shift);});var root=md(p.r+shift);
+    if(pcs.length>4){var fifth=md(root+7);pcs=pcs.filter(function(x){return x!==fifth;}).slice(0,4);}
+    var opts=pcs.map(function(pc){var a=[];for(var n=55;n<=79;n++)if(md(n)===pc)a.push(n);return a;});
+    var best=null,bs=1e9;
+    (function rec(i,acc){if(i===opts.length){var v=acc.slice().sort(function(a,b){return a-b;});var span=v[v.length-1]-v[0];if(span>12)return;
+        var mean=v.reduce(function(a,b){return a+b;},0)/v.length;var sc;
+        if(prev){sc=0;v.forEach(function(n){sc+=Math.min.apply(null,prev.map(function(q){return Math.abs(q-n);}));});prev.forEach(function(q){sc+=Math.min.apply(null,v.map(function(n){return Math.abs(q-n);}));});sc+=0.15*Math.abs(mean-66);}
+        else sc=Math.abs(mean-66)+0.1*span;
+        if(sc<bs){bs=sc;best=v;}return;}
+      opts[i].forEach(function(n){acc.push(n);rec(i+1,acc);acc.pop();});})(0,[]);
+    if(!best)best=pcs.map(function(pc){return 60+pc;}).sort(function(a,b){return a-b;});
+    var bpc=md((p.b!=null?p.b:p.r)+shift),bass=null;for(var n=best[0]-1;n>=best[0]-12;n--)if(md(n)===bpc){bass=n;break;}
+    out.push({v:best,bass:bass});prev=best;});
+  return out;}
+function keyboard(v,bass,lo,hi){var W=[0,2,4,5,7,9,11],w=8,h=40,x=0,wk="",bk="",dot="";
+  for(var n=lo;n<hi;n++){var on=v.indexOf(n)>=0;
+    if(W.indexOf(md(n))>=0){wk+='<rect class="'+(on?"kon":"kw")+'" x="'+x+'" y="0" width="'+w+'" height="'+h+'" rx="1"/>';if(n===bass)dot+='<circle class="kbs" cx="'+(x+w/2)+'" cy="'+(h-6)+'" r="2.4"/>';x+=w;}
+    else{bk+='<rect class="'+(on?"kon":"kb")+'" x="'+(x-2.5)+'" y="0" width="5" height="25" rx="0.8"/>';if(n===bass)dot+='<circle class="kbs" cx="'+x+'" cy="19" r="2"/>';}}
+  return '<svg width="'+(x+1)+'" height="'+(h+1)+'" viewBox="-0.5 -0.5 '+(x+1)+' '+(h+1)+'" role="img" aria-label="Tangenter">'+wk+bk+dot+'</svg>';}
+/* Akkordhjelp for pads: alle akkordene i sangen med pad-grep, og hvilke toner som ligger i alle (eller nesten alle). */
+function padVoice(p){var q=p.q.replace(/[()]/g,"");var minor=/^(m|min|-)(?!aj)/.test(q);var dim=/dim|°|m7b5/.test(q),aug=/aug|\+/.test(q);
+  var core=[0,dim?6:aug?8:7],opt=[];
+  if(/(^|[^0-9b#])2($|[^0-9])|sus2|add9|^9|maj9|m9|69/.test(q))core.push(2);
+  if(/4|sus(?!2)|11/.test(q))core.push(5);
+  if(/maj7|M7|maj9|maj13/.test(q))core.push(11);else if(/7|9|11|13/.test(q)&&!/add|maj|69|6add9/.test(q))core.push(10);
+  if(/6|13/.test(q))core.push(9);
+  var sus=core.indexOf(2)>=0||core.indexOf(5)>=0;
+  if(dim||aug)core.splice(1,0,dim?3:4);else if(!sus)opt.push(minor?3:4);
+  return {core:core,opt:opt};}
+function kb1(red,alm){var W=[0,2,4,5,7,9,11],w=16,h=64,x=0,wk="",bk="";
+  for(var n=0;n<12;n++){var r=red.indexOf(n)>=0,a=alm.indexOf(n)>=0;
+    if(W.indexOf(n)>=0){wk+='<rect class="'+(r?"kon":a?"kal":"kw")+'" x="'+x+'" y="0" width="'+w+'" height="'+h+'" rx="2"/>';x+=w;}
+    else bk+='<rect class="'+(r?"kon":a?"kbl":"kb")+'" x="'+(x-5)+'" y="0" width="10" height="40" rx="1.5"/>';}
+  return '<svg width="'+(x+1)+'" height="'+(h+1)+'" viewBox="-0.5 -0.5 '+(x+1)+' '+(h+1)+'" role="img" aria-label="Felles toner">'+wk+bk+'</svg>';}
+function panelHTML(song,ctx){var seen={},list=[];
+  song.sections.forEach(function(s){(s.lines||[]).forEach(function(l){chordsOf(l).forEach(function(c){if(seen[c])return;var p=parseChord(c);if(p){seen[c]=1;list.push({n:c,p:p});}});});});
+  if(!list.length)return '<div class="pn"><div class="held">Ingen akkorder å vise.</div></div>';
+  var c0={orig:ctx.orig,shift:ctx.shift,flat:ctx.flat,nns:false};var cnt={},fits=[];
+  var chips=list.map(function(x){var v=padVoice(x.p);var r=x.p.r+ctx.shift;var f={};v.core.concat(v.opt).forEach(function(i){f[md(r+i)]=1;});fits.push(f);
+    Object.keys(f).forEach(function(k){cnt[k]=(cnt[k]||0)+1;});
+    var notes=v.core.map(function(i){return noteName(r+i,ctx);}).join(" ")+(v.opt.length?' <span class="op">('+v.opt.map(function(i){return noteName(r+i,ctx);}).join(" ")+')</span>':"");
+    return '<div class="pch"><span class="pcn">'+chordHTML(x.n,c0)+'</span><span class="pcv">'+notes+'</span>'+(x.p.b!=null?'<span class="bs">bass '+noteName(x.p.b+ctx.shift,ctx)+'</span>':"")+'</div>';}).join("");
+  var N=list.length,all=[],most=[],tonic=ctx.cur.pc;Object.keys(cnt).forEach(function(k){if(cnt[k]===N)all.push(+k);else if(N>2&&cnt[k]===N-1)most.push(+k);});
+  var srt=function(a,b){return md(a-tonic)-md(b-tonic);};all.sort(srt);most.sort(srt);
+  var miss=function(pc){for(var i=0;i<N;i++)if(!fits[i][pc])return chordText(list[i].n,c0);return "";};
+  var com='<div class="pcom">'+kb1(all,most)+'<div><div class="pl">Ligger i alle akkordene</div><div class="big">'+(all.length?all.map(function(pc){return noteName(pc,ctx);}).join(" · "):"–")+'</div></div>'+
+    (most.length?'<div><div class="pl">I alle unntatt én</div><div class="alm">'+most.map(function(pc){return noteName(pc,ctx)+' <span class="pl">(ikke '+esc(miss(pc))+')</span>';}).join(" · ")+'</div></div>':"")+'</div>';
+  return '<div class="pn"><p class="ph">Alle akkordene i sangen med pad-grep: grunntone, kvint og fargetone (2, 4, 7). Tersen droppes på 2- og sus-akkorder; i parentes = valgfri ters.</p><div class="pchs">'+chips+'</div>'+com+'</div>';}
+
+/* ---------- lister ---------- */
+function libIds(){return Object.keys(S.songs).sort(function(a,b){var x=S.songs[a],y=S.songs[b];return String(x.title||a).localeCompare(String(y.title||b),"nb")||String(x.ver||"").localeCompare(String(y.ver||""),"nb");});}
+function dname(s,id){return s?(s.title||id||"")+(s.ver?" ("+s.ver+")":""):(id||"");}
+function groupOf(id){var s=S.songs[id];return (s&&s.base&&S.songs[s.base])?s.base:id;}
+function siblings(id){var g=groupOf(id);return libIds().filter(function(x){return groupOf(x)===g;});}
+function setsUsing(id){return Object.keys(S.sets).filter(function(k){return (S.sets[k].items||[]).some(function(it){return it.song===id;});});}
+function curList(){var ko=SCENE?KO:{};
+  if(S.list==="__lib")return libIds().map(function(id){var o=ko["song:"+id];return {id:id,item:o?{key:o,_loc:1}:null};});
+  var sl=S.sets[S.list];if(!sl)return null;return (sl.items||[]).map(function(it,i){var o=ko["set:"+S.list+":"+i+":"+it.song];return {id:it.song,item:o?Object.assign({},it,{key:o,_loc:1}):it};});}
+var KO={};
+function saveKO(){try{localStorage.setItem("lb.keys",JSON.stringify(KO));}catch(e){}}
+function qkHTML(song,ent,ctx){var inSet=S.list!=="__lib";var sn=inSet&&S.sets[S.list]?S.sets[S.list].name:"";
+  var where=SCENE?"Bare på denne iPaden. Lagres i skyen bare hvis du endrer i redigeringsappen.":(inSet?"Gjelder «"+sn+"». Lagres i skyen med en gang.":"Standard for sangen. Lagres i skyen med en gang.");
+  return '<div class="qk"><span class="lbl">Toneart</span><button class="btn ic" data-act="qkey" data-d="-1" aria-label="Ned et halvtrinn">−</button><span class="kv">'+esc(ctx.curName)+'</span><button class="btn ic" data-act="qkey" data-d="1" aria-label="Opp et halvtrinn">+</button>'+
+    (ctx.shift?'<button class="btn sm ghost" data-act="qkey" data-d="0">Original ('+esc(song.key)+')</button>':"")+'<span class="hint">'+esc(where)+'</span><button class="btn sm" data-act="qk">Lukk</button></div>';}
+function qKey(d){var ent=curScreen();var song=ent&&S.songs[ent.id];if(!song)return;var c=ctxFor(song,ent.item);var name=d===0?song.key:keyName(c.cur.pc+d,c.cur.minor);
+  if(SCENE){var k=S.list==="__lib"?"song:"+ent.id:"set:"+S.list+":"+ent.si+":"+ent.id;KO[k]=name;saveKO();render();return;}
+  if(!ready())return;var val=name===song.key?"":name;
+  if(S.list!=="__lib"){var ix=ent.si;setDoc(S.list,function(sl){sl.items[ix].key=val;});}
+  else{var s2=clone(song);s2.playKey=val;S.songs[ent.id]=s2;save("songs/"+ent.id,s2,true);render();}}
+function localKeysHTML(){var ks=Object.keys(KO);if(!ks.length)return "";
+  var rows=ks.map(function(k){var a=k.split(":");var sid=a[0]==="set"?a[a.length-1]:a[1];var s=S.songs[sid];var where=a[0]==="set"&&S.sets[a[1]]?" ("+S.sets[a[1]].name+")":"";return esc(dname(s,sid))+' → <b>'+esc(KO[k])+'</b>'+esc(where);});
+  return '<div class="lcl">Toneart endret på iPaden: '+rows.join(" · ")+'<div class="fl"><span class="hint">Dette ligger bare her. Skal det huskes, endre det i redigeringsappen eller si det til Claude.</span><button class="btn sm ghost" data-act="kores">Nullstill</button></div></div>';}
+function partsOf(song){var ps=[[]];((song&&song.sections)||[]).forEach(function(s){if(s.page&&ps[ps.length-1].length)ps.push([]);ps[ps.length-1].push(s);});return ps;}
+function screens(){var L=curList();if(!L)return null;var out=[];L.forEach(function(e,si){var s=S.songs[e.id];var n=s?partsOf(s).length:1;for(var p=0;p<n;p++)out.push({id:e.id,item:e.item,si:si,part:p,parts:n,count:L.length});});return out;}
+function curScreen(){var L=screens();if(!L||!L.length)return null;return L[Math.max(0,Math.min(L.length-1,S.idx))];}
+function firstScreen(si){var L=screens()||[];for(var i=0;i<L.length;i++)if(L[i].si===si)return i;return 0;}
+function initial(t){var c=String(t||"").trim().charAt(0).toLocaleUpperCase("nb");return /[A-ZÆØÅ]/.test(c)?c:(/[0-9]/.test(c)?"0–9":"#");}
+function tempo(s){return [s.bpm?s.bpm+" BPM":"",s.time||"4/4"].filter(function(x){return x;}).join(" · ");}
+function nrm(x){x=String(x||"").toLowerCase();try{x=x.normalize("NFD").replace(/[\u0300-\u036f]/g,"");}catch(e){}return x;}
+function songLabel(s,id){return esc(s?(s.title||id):id)+(s&&s.ver?' <span class="vtag">('+esc(s.ver)+')</span>':"")+(s&&s.artist?' <span class="muted">– '+esc(s.artist)+'</span>':"");}
+function resHTML(id,q){var nq=nrm(q).trim();var ids=libIds().filter(function(sid){var s=S.songs[sid];return !nq||nrm((s.title||"")+" "+(s.ver||"")+" "+(s.artist||"")).indexOf(nq)>=0;});
+  if(!ids.length)return '<p class="hint">Ingen sanger passer «'+esc(q)+'».</p>';
+  return ids.map(function(sid){return '<button class="res" data-act="addsong" data-id="'+esc(id)+'" data-song="'+esc(sid)+'">'+songLabel(S.songs[sid],sid)+'</button>';}).join("");}
+function dateLabel(d){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||"");if(!m)return d||"";return (+m[3])+". "+MON[+m[2]-1]+" "+m[1];}
+function slug(s){return String(s).toLowerCase().replace(/æ/g,"ae").replace(/ø/g,"o").replace(/å/g,"a").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,80)||"x";}
+
+/* ---------- lagring ---------- */
+var timers={},chains={},pending={},inflight={};
+function busy(path){return !!pending[path]||(inflight[path]|0)>0;}
+function save(path,data,now){pending[path]=data;clearTimeout(timers[path]);timers[path]=setTimeout(function(){flush(path);},now?0:600);}
+function flush(path){var data=pending[path];if(!data)return Promise.resolve();delete pending[path];clearTimeout(timers[path]);
+  var body=clone(data);body.updated=new Date().toISOString();
+  inflight[path]=(inflight[path]|0)+1;
+  chains[path]=(chains[path]||Promise.resolve()).then(function(){return S.db.doc(path).set(body);}).then(function(){if(!S.emode&&!S.live&&Date.now()>(toast.until||0))toast(GHS.off?"Lagret på enheten · sendes når du er på nett":"Lagret");},function(e){toast("Kunne ikke lagre ("+((e&&e.code)||"feil")+"). Prøv igjen.",true);}).then(function(){inflight[path]--;});
+  return chains[path];}
+function flushAll(){Object.keys(pending).forEach(flush);}
+
+/* ---------- oversikt ---------- */
+function atLabel(s){var d=s?new Date(s):null;if(!d||isNaN(d))return "–";var p=function(n){return (n<10?"0":"")+n;};return d.getDate()+". "+MON[d.getMonth()]+" kl. "+p(d.getHours())+":"+p(d.getMinutes());}
+function todayStr(){var d=new Date();var p=function(n){return (n<10?"0":"")+n;};return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
+function dparts(s){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s||"");if(!m)return null;var dt=new Date(+m[1],+m[2]-1,+m[3]);return {d:+m[3],mon:MON[+m[2]-1],dow:DOW[dt.getDay()],y:+m[1]};}
+function renderHome(){document.body.className="";
+  var tabs='<div class="htabs" role="tablist" aria-label="Visning">'+[["sets","Setlister",Object.keys(S.sets).length],["songs","Sanger",Object.keys(S.songs).length]].map(function(t){var on=S.htab===t[0];
+    return '<button class="htab'+(on?" on":"")+'" role="tab" aria-selected="'+on+'" data-act="htab" data-v="'+t[0]+'">'+t[1]+(S.got.songs?'<span class="ct">'+t[2]+'</span>':"")+'</button>';}).join("")+'</div>';
+  var si=SCENE?null:syncInfo();
+  var h='<div class="home"><header class="hh"><p class="brand">Live<span>-</span>blekker'+(SCENE?'<span class="stag">Scene</span>':"")+'</p>'+(si?'<span id="sync" class="sync '+si.c+'">'+esc(si.t)+'</span>':"")+tabs+'</header>';
+  var foot='<footer class="hf"><span class="lbl">Innstillinger</span>'+(SCENE?'<label class="btn sm">Hent oppdatering<input class="vh" type="file" accept=".json,application/json" data-imp="1"></label>':"")+'<button class="btn sm ghost'+(S.tapNav?" on":"")+'" data-act="tapnav" aria-pressed="'+(S.tapNav?"true":"false")+'">Trykk for å bla: '+(S.tapNav?"på":"av")+'</button>'+
+    (SCENE?'<button class="btn sm ghost'+(S.nns?" on":"")+'" data-act="nns" aria-pressed="'+S.nns+'">Tall (123): '+(S.nns?"på":"av")+'</button>':"")+(fsOK()?'<button class="btn sm ghost" data-act="fs">'+(fsOn()?"Avslutt fullskjerm":"Fullskjerm")+'</button>':"")+(S.dl?'<button class="btn sm ghost" data-act="backup">Last ned til Scene-appen</button>':"")+(GH?'<button class="btn sm ghost" data-act="ghsync">Hent nå</button><label class="btn sm ghost">Importer backup<input class="vh" type="file" accept=".json,application/json" data-ghimp="1"></label><button class="btn sm ghost'+(S.ghOut?" danger":"")+'" data-act="ghout">'+(S.ghOut?"Trykk igjen for å koble fra":"Koble fra")+'</button>':"")+
+    (SCENE?'<span class="dat">Blekker oppdatert '+esc(atLabel(S.dataAt))+'</span>':"")+'</footer>';
+  if(!SCENE&&!GH){return h+setupHTML()+'</div>';}
+  if(GHS.err==="auth"&&!S.got.songs){return h+setupHTML("Nøkkelen virker ikke lenger (utløpt eller slettet). Lag en ny og lim den inn.")+'</div>';}
+  if(GHS.err==="norepo"&&!S.got.songs){return h+setupHTML("Fant ikke repoet. Sjekk at nøkkelen har tilgang til «"+(GH&&GH.repo)+"».")+'</div>';}
+  if(S.err){return h+'<div class="msg">Lagringen svarte ikke ('+esc(S.err)+'). Last inn siden på nytt.</div></div>';}
+  if(!S.got.songs){return h+'<div class="msg">'+(S.slow||GHS.off?"Får ikke kontakt med GitHub ennå. Sjekk at du er på nett.":"Henter sanger …")+'</div></div>';}
+  return h+(SCENE?localKeysHTML():"")+(S.htab==="songs"?songsTab():setsTab())+foot+'</div>';}
+function setCard(id,sl,cls){var n=(sl.items||[]).length;var dp=dparts(sl.date);var t=todayStr();var yr=new Date().getFullYear();
+  var names=(sl.items||[]).slice(0,4).map(function(it){var s=S.songs[it.song];return s?dname(s,it.song):(it.title||it.song);}).join(" · ")+(n>4?" …":"");
+  var when=dp?(sl.date===t?"I dag":dp.dow+" "+dp.d+". "+dp.mon+(dp.y!==yr?" "+dp.y:"")):"Uten dato";
+  return '<div class="scard'+(cls?" "+cls:"")+'"><button class="sc-main" data-act="'+(SCENE?"liveset":"openset")+'" data-id="'+esc(id)+'">'+
+    '<span class="sc-date">'+(dp?'<b>'+dp.d+'</b><span>'+esc(dp.mon.replace(".",""))+'</span>':'<b>–</b>')+'</span>'+
+    '<span class="sc-body"><span class="sc-name">'+esc(sl.name||id)+'</span><span class="sc-meta">'+(cls==="next"?'<span class="nx">Neste</span> · ':"")+esc(when)+' · '+n+' '+(n===1?"sang":"sanger")+'</span>'+(names?'<span class="sc-songs">'+esc(names)+'</span>':"")+'</span></button>'+
+    '<div class="sc-act">'+(SCENE?"":'<button class="btn ghost" data-act="toggleset" data-id="'+esc(id)+'" aria-expanded="'+(S.openSet===id)+'">'+(S.openSet===id?"Lukk":"Endre")+'</button>')+''+(SCENE?"":'<button class="btn ghost" data-act="openset" data-id="'+esc(id)+'">Åpne</button>')+'<button class="btn live" data-act="liveset" data-id="'+esc(id)+'"'+(n?"":" disabled")+'>▶ Live</button>'+'</div></div>'+
+    (S.openSet===id?setEditor(id,sl):"");}
+function setsTab(){var t=todayStr();var ids=Object.keys(S.sets);
+  var up=ids.filter(function(id){var d=S.sets[id].date;return !d||d>=t;}).sort(function(a,b){return String(S.sets[a].date||"9999").localeCompare(String(S.sets[b].date||"9999"));});
+  var past=ids.filter(function(id){var d=S.sets[id].date;return d&&d<t;}).sort(function(a,b){return String(S.sets[b].date).localeCompare(String(S.sets[a].date));});
+  var h='<div class="th"><h2>Kommende</h2>'+(SCENE?"":'<button class="btn sm" data-act="newset">'+(S.newSet?"Avbryt":"+ Ny setliste")+'</button>')+'</div>';
+  if(S.newSet)h+='<div class="box"><div class="g2"><label class="fld"><span class="lbl">Navn</span><input id="ns-name" placeholder="Lovsangskveld"></label><label class="fld"><span class="lbl">Dato</span><input id="ns-date" type="date"></label></div><div class="fl"><button class="btn" data-act="createset">Opprett</button><span id="ns-err" class="hint"></span></div></div>';
+  if(!up.length)h+='<p class="hint">Ingen kommende setlister.'+(ids.length?"":" Be Claude legge inn en, eller opprett en her.")+'</p>';
+  up.forEach(function(id,i){h+=setCard(id,S.sets[id],i===0?"next":"");});
+  if(past.length){h+='<div class="past"><div class="th"><h2>Tidligere</h2></div>';past.forEach(function(id){h+=setCard(id,S.sets[id],"");});h+='</div>';}
+  return h;}
+function songsTab(){return '<div class="th"><h2>Alle sanger</h2></div><input id="lq" class="srch lsrch" type="search" data-lq="1" placeholder="Søk etter tittel eller artist" autocomplete="off" value="'+esc(S.lq||"")+'" aria-label="Søk i sangene"><div id="liblist">'+libListHTML()+'</div>';}
+function libListHTML(){var lib=libIds();if(!lib.length)return '<p class="hint">Ingen sanger ennå. Send blekkene til Claude i prosjektet, så dukker de opp her.</p>';
+  var nq=nrm(S.lq||"").trim(),h="",lastL=null,any=false;
+  lib.forEach(function(id,i){var s=S.songs[id];if(nq&&nrm((s.title||"")+" "+(s.ver||"")+" "+(s.artist||"")).indexOf(nq)<0)return;any=true;var L0=initial(s.title||id);
+    if(L0!==lastL){h+='<div class="letter'+(lastL===null?" first":"")+'">'+esc(L0)+'</div>';lastL=L0;}
+    h+='<div class="row"><button class="main" data-act="openlib" data-i="'+i+'"><span class="rt">'+esc(s.title||id)+(s.ver?' <span class="vtag">('+esc(s.ver)+')</span>':"")+'</span><span class="rm">'+esc(s.artist||"")+'</span></button><span class="tempo">'+esc(tempo(s))+'</span><span class="kchip">'+esc(s.playKey||s.key||"")+'</span></div>';});
+  return any?h:'<p class="hint">Ingen sanger passer «'+esc(S.lq)+'».</p>';}
+function setEditor(id,sl){var items=sl.items||[];var h='<div class="box">';
+  items.forEach(function(it,i){var s=S.songs[it.song];var sib=s?siblings(it.song):[];
+    var vs=sib.length>1?'<select class="vsel" data-id="'+esc(id)+'" data-i="'+i+'" aria-label="Versjon av '+esc(s.title||"")+'">'+sib.map(function(x){return '<option value="'+esc(x)+'"'+(x===it.song?" selected":"")+'>'+esc(S.songs[x].ver||"Original")+'</option>';}).join("")+'</select>':"";
+    h+='<div class="it"><span class="n">'+(i+1)+'. '+(s?songLabel(s,it.song):esc(it.title||it.song)+' <span class="hint">(blekk mangler)</span>')+'</span>'+vs+'<span class="kchip">'+esc(it.key||(s?(s.playKey||s.key):""))+'</span>'+
+    '<button class="btn sm ghost" data-act="mv" data-id="'+esc(id)+'" data-i="'+i+'" data-d="-1" aria-label="Flytt opp">↑</button><button class="btn sm ghost" data-act="mv" data-id="'+esc(id)+'" data-i="'+i+'" data-d="1" aria-label="Flytt ned">↓</button><button class="btn sm ghost" data-act="rm" data-id="'+esc(id)+'" data-i="'+i+'" aria-label="Fjern">✕</button></div>';});
+  if(!items.length)h+='<p class="hint">Ingen sanger i setlisten ennå.</p>';
+  h+='<input id="q-'+esc(id)+'" class="srch" type="search" data-q="'+esc(id)+'" placeholder="Legg til sang: søk etter tittel eller artist" autocomplete="off" value="'+esc(S.q||"")+'" aria-label="Søk etter sang"><div class="reslist" id="r-'+esc(id)+'">'+resHTML(id,S.q||"")+'</div>';
+  h+='<div class="fl"><input id="sn-'+esc(id)+'" value="'+esc(sl.name||"")+'" aria-label="Navn"><input id="sd-'+esc(id)+'" type="date" value="'+esc(sl.date||"")+'" aria-label="Dato"><button class="btn sm" data-act="rename" data-id="'+esc(id)+'">Lagre navn</button>'+
+    (S.askDel===id?'<button class="btn sm danger" data-act="delset" data-id="'+esc(id)+'">Bekreft sletting</button>':'<button class="btn sm ghost" data-act="askdel" data-id="'+esc(id)+'">Slett setliste</button>')+'</div>';
+  return h+'</div>';}
+function setDoc(id,mut){var sl=clone(S.sets[id]);mut(sl);S.sets[id]=sl;save("setlists/"+id,sl,true);render();}
+
+/* ---------- sangvisning ---------- */
+function renderSong(){var L=screens();if(!L||!L.length){S.view="home";return renderHome();}
+  S.idx=Math.max(0,Math.min(L.length-1,S.idx));var ent=L[S.idx];var base=S.songs[ent.id];
+  if(SCENE){S.live=true;S.edit=false;}
+  var song=S.edit&&S.draft?S.draft:base;var LV=S.live&&!S.edit;document.body.className=S.edit?"":(LV?"live golive":"live");
+  var nav='<button class="btn ghost back" data-act="home" aria-label="Til oversikten">‹ Oversikt</button>';
+  var nextE=L[S.idx+1];var nextS=nextE&&S.songs[nextE.id];var n1,n2;
+  if(!nextE){n1="Neste";n2="Slutt på settet";}
+  else if(nextE.si===ent.si){var np=partsOf(nextS)[nextE.part]||[];n1="Neste · del "+(nextE.part+1)+"/"+nextE.parts;n2=np[0]?np[0].name:"";}
+  else{n1="Neste";n2=(nextS?dname(nextS,nextE.id):(nextE.item&&nextE.item.title)||nextE.id)+((nextE.item&&nextE.item.key)||(nextS&&(nextS.playKey||nextS.key))?" · "+((nextE.item&&nextE.item.key)||nextS.playKey||nextS.key):"");}
+  var navR='<div class="navg"><span class="pos">'+(ent.si+1)+'/'+ent.count+'</span><button class="btn ghost ic" data-act="prev" aria-label="Forrige">‹</button><button class="btn nxt" data-act="next" aria-label="Neste: '+esc(n2)+'"><span class="nw"><span class="n1">'+esc(n1)+'</span><span class="n2">'+esc(n2)+'</span></span><span class="ar" aria-hidden="true">›</span></button></div>';
+  if(!song){return '<div class="bar">'+nav+'<div class="tt"><div class="ttl">'+esc((ent.item&&ent.item.title)||ent.id)+'</div><div class="meta">Blekk mangler</div></div>'+navR+'</div><div class="msg">Denne sangen er ikke lagt inn ennå. Send blekkene til Claude, så kommer den hit.</div>';}
+  var ctx=ctxFor(song,ent.item);
+  var keyH='Key <b>'+esc(ctx.curName)+'</b>'+(ctx.shift?' <span>(orig. '+esc(song.key)+')</span>':"");
+  var meta=[ent.parts>1&&!S.edit?'<b>Del '+(ent.part+1)+'/'+ent.parts+'</b>':"",song.artist?esc(song.artist):"",keyH,song.bpm?esc(song.bpm)+" BPM":"",esc(song.time||"4/4")].filter(function(x){return x;}).join(" · ");
+  var tools=S.edit?'<div class="tools">'+[["chords","Akkorder"],["parts","Deler"],["details","Detaljer"]].map(function(t){return '<button class="btn'+(S.etab===t[0]?" on":"")+'" data-act="etab" data-v="'+t[0]+'" aria-pressed="'+(S.etab===t[0])+'">'+t[1]+'</button>';}).join("")+
+      '<button class="btn ghost" data-act="undo"'+(S.hist.length?"":" disabled")+'>Angre</button><button class="btn pri" data-act="edit">Ferdig</button></div>':
+    '<div class="tools"><button class="btn pri" data-act="golive">▶ Live</button><button class="btn'+(S.qk?" on":"")+'" data-act="qk" aria-pressed="'+S.qk+'">Toneart <b>'+esc(ctx.curName)+'</b></button><button class="btn'+(S.panel?" on":"")+'" data-act="panel" aria-pressed="'+S.panel+'">Akkordhjelp</button><button class="btn'+(S.nns?" on":"")+'" data-act="nns">'+(S.nns?"ABC":"123")+'</button><button class="btn'+(S.emode?" on":"")+'" data-act="emode">Energi</button><button class="btn" data-act="edit">Rediger</button></div>';
+
+  var h;
+  if(LV){var loc=!!(ent.item&&ent.item._loc);var lm=['<button class="kbtn'+(loc?" loc":"")+(S.qk?" on":"")+'" data-act="qk" aria-label="Endre toneart">'+esc(ctx.curName)+(loc?" •":"")+'</button>',ent.parts>1?'<b>del '+(ent.part+1)+'/'+ent.parts+'</b>':"",song.bpm?esc(song.bpm)+" BPM":"",esc(song.time||"4/4")].filter(function(x){return x;}).join(" · ");
+    h='<div class="bar lbar"><button class="btn ghost back lx'+(S.lexit?" ask":"")+'" data-act="liveexit">'+(S.lexit?"Trykk igjen":"Avslutt")+'</button><div class="tt"><div class="ttl">'+esc(dname(song,ent.id))+'<span class="lmeta">'+lm+'</span></div></div>'+navR+'</div>';}
+  else h='<div class="bar">'+nav+'<div class="tt"><div class="ttl">'+esc(dname(song,ent.id))+'</div><div class="meta">'+meta+'</div></div>'+tools+(S.edit?"":navR)+'</div>';
+  if(S.edit){var nu=setsUsing(ent.id).length;h+='<p class="ehint">Endringer gjelder <b>'+esc(dname(song,ent.id))+'</b> overalt'+(nu?' ('+nu+' '+(nu===1?"setliste":"setlister")+')':"")+'. Tonearten er egen per setliste. Spiller et annet band den annerledes: lag en egen versjon under Detaljer.</p>';}
+  if(S.edit){var ectx=ctxFor(song,ent.item);ectx.nns=false;return h+(S.etab==="parts"?partsHTML(song,ectx):S.etab==="details"?editHTML(song,ent,ctx):chordsHTML(song,ectx));}
+  var part=partsOf(song)[ent.part]||song.sections;var inPart={};part.forEach(function(x){inPart[x.id]=1;});
+  var w=ent.part===0?(song.warn||[]).filter(function(x){return String(x).trim();}):[];
+  if(w.length)h+='<div class="warn"><span class="wl">Før du spiller</span>'+w.map(function(x){return '<span>'+esc(x)+'</span>';}).join('<span aria-hidden="true">·</span>')+'</div>';
+  if(S.qk&&!S.edit)h+=qkHTML(song,ent,ctx);
+  var miss=LV?"":song.missing;
+  if((song.rig&&ent.part===0)||miss)h+='<div class="rig">'+(song.rig&&ent.part===0?'<span>Rigg: '+esc(song.rig)+'</span>':"")+(miss?'<span class="miss">'+esc(miss)+'</span>':"")+'</div>';
+  if(S.panel&&!LV)h+=panelHTML(song,ctx);
+  var cp=song.compact==="on";
+  return h+'<div id="sheet" class="sheet" data-cp="'+(cp?"1":"")+'">'+sheetInner(song,ctx,part,cp)+'</div>';}
+
+var MAXF=20;
+var FC={};try{FC=JSON.parse(localStorage.getItem("lb.fit")||"{}")||{};}catch(e){FC={};}
+function saveFC(){clearTimeout(saveFC.t);saveFC.t=setTimeout(function(){try{if(Object.keys(FC).length>400)FC={};localStorage.setItem("lb.fit",JSON.stringify(FC));}catch(e){}},1500);}
+function hash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36);}
+function fitKey(e,song,W,H){var c=ctxFor(song,e.item);return [e.id,e.part,W,H,S.nns?1:0,c.shift,c.flat?1:0,S.fontsOK?1:0,MAXF,hash(JSON.stringify(song.sections))].join("|");}
+/* Finner største skrift (maks MAXF) og antall kolonner som får delen til å passe på én skjerm. Resultatet caches, så gamle iPader slipper å regne på nytt. */
+function fitEl(sh,H,key){sh.classList.remove("scroll");sh.style.height=H+"px";
+  var W=sh.clientWidth;var maxC=W>=1300?4:(W>=880?3:(W>=520?2:1));
+  function cols(c){sh.style.columnCount=c;sh.style.webkitColumnCount=c;}
+  var lns=sh.querySelectorAll(".ln");
+  function lnOK(){for(var i=0;i<lns.length;i++)if(lns[i].scrollWidth>lns[i].clientWidth+1)return false;return true;}
+  function noWrap(){for(var i=0;i<lns.length;i++){var l=lns[i];
+      if(l.classList.contains("tx")){if(l.firstChild&&l.firstChild.getClientRects().length>1)return false;}
+      else if(!l.classList.contains("bars")&&l.children.length>1&&l.lastElementChild.offsetTop>l.firstElementChild.offsetTop+2)return false;}return true;}
+  function ok(f,nw){sh.style.fontSize=f+"px";return sh.scrollWidth<=sh.clientWidth+1&&sh.scrollHeight<=sh.clientHeight+1&&lnOK()&&(!nw||noWrap());}
+  if(key&&key.f!=null){cols(key.c);if(!key.f){sh.style.fontSize="11px";sh.classList.add("scroll");return key;}return ok(key.f,false)?key:null;}
+  function search(nw){var b=null;for(var c=1;c<=maxC;c++){cols(c);if(!ok(10,nw))continue;var lo=10,hi=MAXF;if(ok(hi,nw)){lo=hi;}else{while(hi-lo>0.4){var mid=(lo+hi)/2;if(ok(mid,nw))lo=mid;else hi=mid;}}
+    if(!b||lo>b.f+0.8)b={f:lo,c:c};if(lo>=MAXF)break;}return b;}
+  var best=search(false);var flat=best?search(true):null;if(flat&&flat.f>=best.f*0.84)best=flat;
+  var res=best?{f:Math.floor(best.f*10)/10,c:best.c}:{f:0,c:maxC};
+  cols(res.c);if(res.f)sh.style.fontSize=res.f+"px";else{sh.style.fontSize="11px";sh.classList.add("scroll");}
+  return res;}
+var CPF=16;
+function fitSheet(sh,H,e,song){var mode=song.compact||"auto";var ctx=ctxFor(song,e.item);var part=partsOf(song)[e.part]||song.sections;
+  sh.style.height=H+"px";var key=fitKey(e,song,sh.clientWidth,H)+"|"+mode;var hit=FC[key];
+  function cpNow(){return sh.getAttribute("data-cp")==="1";}
+  function put(cp){if(cp===cpNow())return;sh.innerHTML=sheetInner(song,ctx,part,cp);sh.setAttribute("data-cp",cp?"1":"");}
+  if(hit){put(!!hit.cp);var rh=fitEl(sh,H,hit);if(rh)return rh;}
+  var r1=fitEl(sh,H,null);r1.cp=cpNow();var res=r1;
+  if(mode==="auto"&&!r1.cp&&r1.f<CPF&&hasPlan(song,part)){put(true);var r2=fitEl(sh,H,null);
+    if(r2.f>=r1.f+0.8||(!r1.f&&r2.f)){r2.cp=true;res=r2;}else{put(false);fitEl(sh,H,r1);}}
+  FC[key]={f:res.f,c:res.c,cp:!!res.cp};saveFC();return res;}
+function barRes(){var ep=$("epal");return ep&&!ep.hidden?ep.offsetHeight+8:0;}
+function fit(){var sh=$("sheet");if(!sh)return;var e=curScreen();var song=e&&S.songs[e.id];
+  var top=sh.getBoundingClientRect().top;var H=Math.max(160,Math.round(window.innerHeight-top-12-barRes()));
+  var r=song?fitSheet(sh,H,e,song):fitEl(sh,H,null);
+  if(!r.f)document.body.className="";}
+/* Regner ut neste og forrige skjerm i bakgrunnen, så sveipet blir like raskt første gang. */
+function prefit(){clearTimeout(prefit.t);prefit.t=setTimeout(function(){if(S.view!=="song"||S.edit||drag)return;var L=screens();if(!L)return;var app=$("app");
+  [S.idx+1,S.idx-1].forEach(function(n){if(n<0||n>=L.length)return;var e=L[n];var song=S.songs[e.id];if(!song)return;
+    var keep={idx:S.idx,ps:S.psid,bc:document.body.className},html;S.idx=n;S.psid=null;
+    try{html=renderSong();}catch(x){html="";}S.idx=keep.idx;S.psid=keep.ps;document.body.className=keep.bc;if(!html)return;
+    var box=document.createElement("div");box.setAttribute("aria-hidden","true");box.style.cssText="position:absolute;left:0;top:0;visibility:hidden;pointer-events:none;width:"+app.clientWidth+"px";box.innerHTML=html;document.body.appendChild(box);
+    var sh=box.querySelector(".sheet");if(sh){sh.removeAttribute("id");var top=sh.getBoundingClientRect().top-box.getBoundingClientRect().top;var H=Math.max(160,Math.round(window.innerHeight-top-12-barRes()));
+      try{fitSheet(sh,H,e,song);}catch(x){}}
+    document.body.removeChild(box);});},350);}
+
+/* ---------- redigering: akkorder ---------- */
+function lparse(s){var re=/\[([^\]]*)\]/g,m,t="",c=[],i=0;s=String(s);while((m=re.exec(s))){t+=s.slice(i,m.index);c.push({p:t.length,n:m[1]});i=re.lastIndex;}t+=s.slice(i);return {t:t,c:c};}
+function lbuild(L){var out="",i=0;L.c.forEach(function(c){out+=L.t.slice(i,c.p)+"["+c.n+"]";i=c.p;});return out+L.t.slice(i);}
+function resort(L){L.c.forEach(function(c,k){c.k=k;});L.c.sort(function(a,b){return a.p-b.p||a.k-b.k;});}
+function eSegs(L){var cs=L.c,out=[];var first=cs.length?cs[0].p:L.t.length;if(first>0||!cs.length)out.push({ci:-1,a:0,b:first});
+  cs.forEach(function(c,k){out.push({ci:k,a:c.p,b:k+1<cs.length?cs[k+1].p:L.t.length});});return out;}
+function isCar(si,li,p){return !!(S.ccar&&S.ccar.si===si&&S.ccar.li===li&&S.ccar.p===p);}
+function charsHTML(t,a,b,si,li){var h="";for(var j=a;j<b;j++)h+='<span class="ec'+(isCar(si,li,j)?" icar":"")+'" data-act="cpos" data-si="'+si+'" data-li="'+li+'" data-p="'+j+'">'+esc(t.charAt(j))+'</span>';return h;}
+function elineHTML(s,si,li,ctx){var L=lparse(s);if(!L.t.trim()&&!L.c.length)return "";var sg=eSegs(L);
+  function chip(k){var on=S.csel&&S.csel.si===si&&S.csel.li===li&&S.csel.ci===k;return '<b class="c ech'+(on?" csel":"")+'" data-act="csel" data-si="'+si+'" data-li="'+li+'" data-ci="'+k+'">'+esc(chordText(L.c[k].n,ctx))+'</b>';}
+  var end='<span class="ec eend'+(isCar(si,li,L.t.length)?" icar":"")+'" data-act="cpos" data-si="'+si+'" data-li="'+li+'" data-p="'+L.t.length+'" aria-label="Sett inn akkord på slutten av linjen">+</span>';
+  if(L.c.length&&isBarLine(s))return '<div class="ln bars">'+sg.map(function(x){return (x.ci>=0?chip(x.ci):"")+'<span class="bt">'+charsHTML(L.t,x.a,x.b,si,li)+'</span>';}).join("")+end+'</div>';
+  var groups=[],cur=[];sg.forEach(function(x){cur.push(x);if(x.b>x.a&&/\s/.test(L.t.charAt(x.b-1))){groups.push(cur);cur=[];}});if(cur.length)groups.push(cur);
+  return '<div class="ln">'+groups.map(function(g){return '<span class="wd">'+g.map(function(x){return '<span class="sg">'+(x.ci>=0?chip(x.ci):'<b class="c">&#8203;</b>')+'<span class="t">'+(x.b>x.a?charsHTML(L.t,x.a,x.b,si,li):"&#8203;")+'</span></span>';}).join("")+'</span>';}).join("")+
+    '<span class="sg"><b class="c">&#8203;</b><span class="t">'+end+'</span></span></div>';}
+function chordsHTML(song,ctx){var h='<div class="ed"><div class="sheet esheet">';
+  song.sections.forEach(function(sec,si){var o=sec.same?findSec(song,sec.same):null;var k=sec.kind||kindOf(sec.name||(o&&o.name));var e=Math.max(0,Math.min(5,sec.energy|0));
+    if(sec.page&&si>0)h+='<div class="pgdiv">Ny skjerm</div>';
+    var hd='<div class="sh"><span class="sn">'+esc(sec.name||"Del")+'</span>'+(sec.rep?'<span class="rep">'+esc(repText(sec.rep))+'</span>':"")+(sec.note?'<span class="note">'+esc(sec.note)+'</span>':"")+'</div>';
+    var body=o?'<div class="esame"><span>Gjentar «'+esc(o.name||"delen")+'». Endrer du akkordene der, endres de her også.</span><button class="btn sm ghost" data-act="pcopy" data-si="'+si+'">Lag egen versjon</button></div>':
+      ((sec.lines||[]).map(function(l,li){return elineHTML(l,si,li,ctx);}).join("")||'<div class="hint">Ingen linjer her. Skriv tekst og akkorder under Detaljer.</div>');
+    h+='<section class="sec k-'+k+' e'+e+'">'+hd+body+(sec.after?'<div class="after">'+esc(sec.after)+'</div>':"")+'</section>';});
+  return h+'</div></div>';}
+function editCtx(){var e=curScreen();var c=ctxFor(S.draft,e&&e.item);c.nns=false;return c;}
+function songChords(song){var out=[];song.sections.forEach(function(s){(s.lines||[]).forEach(function(l){chordsOf(l).forEach(function(c){if(out.indexOf(c)<0)out.push(c);});});});return out;}
+function selChord(){var s=S.csel;if(!s||!S.draft)return null;var sec=S.draft.sections[s.si];if(!sec||!sec.lines||sec.lines[s.li]==null)return null;var L=lparse(sec.lines[s.li]);return L.c[s.ci]?{L:L,c:L.c[s.ci]}:null;}
+function cbarHTML(){var ctx=editCtx();var pk=songChords(S.draft).slice(0,30).map(function(c){return '<button class="pk" data-act="cpick" data-v="'+esc(c)+'">'+esc(chordText(c,ctx))+'</button>';}).join("");
+  var inp=function(v,ph,lab){return '<input id="cin" class="cin" value="'+esc(v)+'" placeholder="'+ph+'" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="'+lab+'">';};
+  var sc=selChord();
+  if(sc)return '<div class="cbar"><div class="cb1"><span class="el">Akkord</span>'+inp(chordText(sc.c.n,ctx),"","Akkordnavn")+
+    '<button class="btn ic" data-act="cmv" data-d="-2" aria-label="Flytt til forrige ord">«</button><button class="btn ic" data-act="cmv" data-d="-1" aria-label="Flytt én bokstav til venstre">‹</button><button class="btn ic" data-act="cmv" data-d="1" aria-label="Flytt én bokstav til høyre">›</button><button class="btn ic" data-act="cmv" data-d="2" aria-label="Flytt til neste ord">»</button>'+
+    '<button class="btn danger" data-act="cdel">Slett</button><button class="btn ghost" data-act="cnone">OK</button></div><div class="picks">'+pk+'</div><span class="hint">Bytt: skriv navnet eller trykk en akkord over. Flytt: pilene (‹ › én bokstav, « » ett ord), eller trykk på stavelsen den skal stå på.</span></div>';
+  if(S.ccar)return '<div class="cbar"><div class="cb1"><span class="el">Ny akkord</span>'+inp("","f.eks. G/B","Ny akkord")+'<button class="btn pri" data-act="cins">Sett inn</button><button class="btn ghost" data-act="cnone">Avbryt</button></div><div class="picks">'+pk+'</div><span class="hint">Trykk en akkord over, eller skriv en ny, så havner den der markøren står.</span></div>';
+  return '<span class="el">Trykk på en akkord for å bytte, flytte eller slette den. Trykk på en bokstav for å sette inn en ny akkord der.</span>';}
+function pushUndo(tag){if(tag&&tag===S.utag)return;S.utag=tag||null;S.hist.push(JSON.stringify(S.draft));if(S.hist.length>80)S.hist.shift();}
+function dirty(){var e=curScreen();if(e)save("songs/"+e.id,S.draft);}
+function normCh(v){v=String(v||"").trim().replace(/\s+/g,"");if(!v)return "";v=v.charAt(0).toUpperCase()+v.slice(1);return v.replace(/\/([a-h])/,function(m,x){return "/"+x.toUpperCase();});}
+function toStore(v,ctx){var p=parseChord(v);if(!p||!ctx.shift)return v;var nm=FLATKEY[S.draft.key]?FLAT:SHARP;
+  return nm[md(p.r-ctx.shift)]+p.q+(p.b!=null?"/"+nm[md(p.b-ctx.shift)]:"");}
+function setLine(si,li,L){S.draft.sections[si].lines[li]=lbuild(L);}
+function atEnd(L,c){if(c.p>=L.t.length&&L.t.length&&!/\s$/.test(L.t)){L.t+=" ";c.p=L.t.length;}}
+function cmove(d){var sc=selChord();if(!sc)return;var L=sc.L,c=sc.c,t=L.t,p=c.p,np=p;
+  if(d===-1)np=Math.max(0,p-1);else if(d===1)np=Math.min(t.length,p+1);
+  else{var ws=[];for(var i=0;i<t.length;i++)if(t.charAt(i)!==" "&&(i===0||t.charAt(i-1)===" "))ws.push(i);ws.push(t.length);
+    if(d>0){np=t.length;for(var j=0;j<ws.length;j++)if(ws[j]>p){np=ws[j];break;}}else{np=0;for(var j2=ws.length-1;j2>=0;j2--)if(ws[j2]<p){np=ws[j2];break;}}}
+  if(np===p)return;pushUndo();c.p=np;resort(L);S.csel.ci=L.c.indexOf(c);setLine(S.csel.si,S.csel.li,L);dirty();}
+function cmoveTo(si,li,p){var s=S.csel,sc=selChord();if(!sc)return;
+  if(s.si===si&&s.li===li){if(sc.c.p===p)return;pushUndo();sc.c.p=p;atEnd(sc.L,sc.c);resort(sc.L);S.csel.ci=sc.L.c.indexOf(sc.c);setLine(si,li,sc.L);}
+  else{pushUndo();sc.L.c.splice(s.ci,1);setLine(s.si,s.li,sc.L);var L2=lparse(S.draft.sections[si].lines[li]);var nc={p:p,n:sc.c.n};atEnd(L2,nc);L2.c.push(nc);resort(L2);setLine(si,li,L2);S.csel={si:si,li:li,ci:L2.c.indexOf(nc)};}
+  dirty();}
+function cdel(){var sc=selChord();if(!sc)return;pushUndo();sc.L.c.splice(S.csel.ci,1);setLine(S.csel.si,S.csel.li,sc.L);S.csel=null;dirty();}
+function crename(v,stored){var sc=selChord();if(!sc)return;var n=stored?v:toStore(normCh(v),editCtx());if(!n||n===sc.c.n)return;
+  pushUndo(stored?null:"rn"+S.csel.si+"."+S.csel.li+"."+S.csel.ci);sc.c.n=n;setLine(S.csel.si,S.csel.li,sc.L);dirty();}
+function cinsert(v,stored){var car=S.ccar;if(!car)return;var n=stored?v:toStore(normCh(v),editCtx());if(!n)return;pushUndo();
+  var L=lparse(S.draft.sections[car.si].lines[car.li]);var nc={p:car.p,n:n};atEnd(L,nc);L.c.push(nc);resort(L);setLine(car.si,car.li,L);S.csel={si:car.si,li:car.li,ci:L.c.indexOf(nc)};S.ccar=null;dirty();}
+
+/* ---------- redigering: deler ---------- */
+function newId(){var n=0;S.draft.sections.forEach(function(s){var m=/^s(\d+)$/.exec(s.id||"");if(m)n=Math.max(n,+m[1]);});var id="s"+(n+1);while(findSec(S.draft,id))id+="b";return id;}
+function chPreview(sec,ctx){var cs=[];(sec.lines||[]).forEach(function(l){chordsOf(l).forEach(function(c){if(cs.length<5&&cs[cs.length-1]!==c)cs.push(c);});});
+  if(cs.length)return cs.map(function(c){return chordText(c,ctx);}).join(" ");
+  var t=(sec.lines||[]).map(function(l){return l.replace(/\[[^\]]*\]/g,"").trim();}).filter(function(x){return x;}).join(" / ");return t.length>40?t.slice(0,38)+"…":t;}
+function partsHTML(song,ctx){var secs=song.sections;
+  var h='<div class="ed"><p class="hint" style="margin:2px 0 6px">Flytt med pilene, fjern med ✕ og trykk + for å legge til en del etter. ×-knappen bytter antall gjentak. Alt kan angres.</p><div class="plist">';
+  secs.forEach(function(s,i){var o=s.same?findSec(song,s.same):null;var k=s.kind||kindOf(s.name||(o&&o.name));var nm=esc(s.name||"Del");
+    if(s.page&&i>0)h+='<div class="pgdiv">Ny skjerm</div>';
+    h+='<div class="prow k-'+k+(S.flash===s.id?" flash":"")+'" data-row="'+esc(s.id)+'"><span class="sn">'+nm+'</span><span class="pinfo">'+(o?'Gjentar «'+esc(o.name||"")+'»'+(chPreview(o,ctx)?" · ":""):"")+esc(chPreview(o||s,ctx))+'</span><span class="pb">'+
+      '<button class="btn sm ghost" data-act="prep" data-si="'+i+'" aria-label="Antall gjentak for '+nm+'">'+(s.rep?esc(repText(s.rep)):"×1")+'</button>'+
+      (i>0?'<button class="btn sm ghost'+(s.page?" on":"")+'" data-act="ppage" data-si="'+i+'" aria-pressed="'+(!!s.page)+'">Ny skjerm</button>':"")+
+      '<button class="btn sm ghost ic" data-act="pmv" data-si="'+i+'" data-d="-1" aria-label="Flytt '+nm+' opp"'+(i===0?" disabled":"")+'>↑</button>'+
+      '<button class="btn sm ghost ic" data-act="pmv" data-si="'+i+'" data-d="1" aria-label="Flytt '+nm+' ned"'+(i===secs.length-1?" disabled":"")+'>↓</button>'+
+      '<button class="btn sm ghost ic" data-act="prm" data-si="'+i+'" aria-label="Fjern '+nm+'">✕</button>'+
+      '<button class="btn sm ic'+(S.addAt===i?" on":"")+'" data-act="padd" data-si="'+i+'" aria-label="Legg til del etter '+nm+'" aria-expanded="'+(S.addAt===i)+'">+</button></span></div>';
+    if(S.addAt===i)h+=pickHTML(song,ctx,i);});
+  if(!secs.length)h+='<p class="hint">Ingen deler ennå.</p><div class="fl"><button class="btn" data-act="pnew" data-si="-1">Ny del</button></div>';
+  return h+'</div></div>';}
+function pickHTML(song,ctx,i){var orig=song.sections.filter(function(s){return !s.same;});
+  return '<div class="pick"><span class="lbl">Legg til etter «'+esc(song.sections[i].name||"del")+'»</span><div class="fl">'+orig.map(function(o){var pv=chPreview(o,ctx);
+      return '<button class="btn sm" data-act="prep2" data-si="'+i+'" data-from="'+esc(o.id)+'">'+esc(o.name||"Del")+(pv?' <span class="muted">'+esc(pv.length>18?pv.slice(0,17)+"…":pv)+'</span>':"")+'</button>';}).join("")+
+    '<button class="btn sm ghost" data-act="pnew" data-si="'+i+'">+ Ny tom del</button></div><p class="hint" style="margin:8px 0 0">En gjentatt del bruker tekst og akkorder fra originalen og står bare med navnet når originalen er på samme skjerm.</p></div>';}
+function pmv(i,d){var secs=S.draft.sections;var j=i+d;if(j<0||j>=secs.length)return;pushUndo();var t=secs[i];secs[i]=secs[j];secs[j]=t;S.addAt=null;S.flash=t.id;dirty();}
+function prm(i){var secs=S.draft.sections;if(!secs[i])return;pushUndo();var x=secs.splice(i,1)[0];
+  if(!x.same){var refs=secs.filter(function(s){return s.same===x.id;});if(refs.length){var p=refs[0];delete p.same;delete p.full;p.lines=clone(x.lines||[]);if(x.kind&&!p.kind)p.kind=x.kind;refs.slice(1).forEach(function(s){s.same=p.id;});}}
+  S.addAt=null;dirty();toast("Fjernet «"+(x.name||"del")+"». Trykk Angre for å få den tilbake.",false,3500);}
+function padd(from,i){var o=findSec(S.draft,from);if(!o)return;pushUndo();var ns={id:newId(),name:o.name||"Del",same:o.id};S.draft.sections.splice(i+1,0,ns);S.addAt=null;S.flash=ns.id;dirty();}
+function pnew(i){pushUndo();var ns={id:newId(),name:"Ny del",lines:[]};S.draft.sections.splice(i+1,0,ns);S.addAt=null;S.etab="details";S.focusSec=i+1;S.dsec=i+1;dirty();}
+function pcopy(i){var s=S.draft.sections[i];var o=s&&s.same?findSec(S.draft,s.same):null;if(!o)return;pushUndo();s.lines=clone(o.lines||[]);delete s.same;delete s.full;dirty();}
+function ppage(i){var s=S.draft.sections[i];if(!s)return;pushUndo();s.page=!s.page;dirty();}
+function prep(i){var s=S.draft.sections[i];if(!s)return;pushUndo("rep"+i);var cur=String(s.rep||"").replace(/[^\d]/g,"");var nx={"":"2x","1":"2x","2":"3x","3":"4x","4":""}[cur];s.rep=nx==null?"":nx;dirty();}
+function ensureVis(){var el=document.querySelector(".csel")||document.querySelector(".icar");if(!el)return;var r=el.getBoundingClientRect();var ep=$("epal");var bt=ep&&!ep.hidden?ep.getBoundingClientRect().top:window.innerHeight;
+  if(r.bottom>bt-12)window.scrollBy(0,r.bottom-bt+70);else if(r.top<60)window.scrollBy(0,r.top-90);}
+function vvFix(){var vv=window.visualViewport,ep=$("epal");if(!vv||!ep)return;var off=window.innerHeight-vv.height-vv.offsetTop;ep.style.bottom=(off>1?Math.round(off):0)+"px";}
+if(window.visualViewport){window.visualViewport.addEventListener("resize",vvFix);window.visualViewport.addEventListener("scroll",vvFix);}
+function padBar(){var app=$("app"),ep=$("epal");app.style.paddingBottom=S.edit&&S.etab==="chords"&&ep&&!ep.hidden?(ep.offsetHeight+30)+"px":"";}
+function renderApp(){$("app").innerHTML=renderSong();if(S.edit&&S.etab==="chords")document.body.classList.add("echords");}
+function afterEdit(){if(S.focusSec!=null){var el=$("s"+S.focusSec+"-name");S.focusSec=null;if(el){try{el.scrollIntoView({block:"center"});el.focus();el.select();}catch(x){}}}
+  if(S.flash){clearTimeout(afterEdit.t);afterEdit.t=setTimeout(function(){S.flash=null;var f=document.querySelectorAll(".prow.flash");for(var i=0;i<f.length;i++)f[i].classList.remove("flash");},900);}}
+
+/* ---------- redigering: detaljer ---------- */
+function enBtns(act,si,cur,none){return '<div class="en">'+(none?'<button class="eb eb0'+(cur==null?" on":"")+'" data-act="'+act+'" data-si="'+si+'" data-v="-1">Nei</button>':"")+[0,1,2,3,4,5].slice(none?1:0).map(function(v){return '<button class="eb eb'+v+(cur===v?" on":"")+'" data-act="'+act+'" data-si="'+si+'" data-v="'+v+'" aria-label="Energi '+v+'">'+(v||"–")+'</button>';}).join("")+'</div>';}
+function editHTML(song,ent,ctx){var inSet=S.list!=="__lib";var setName=inSet&&S.sets[S.list]?S.sets[S.list].name:"";
+  var id0=ent.id,sib=siblings(id0),used=setsUsing(id0);
+  var h='<div class="ed"><div class="ef"><div class="ktop">'+
+   '<div class="fld"><span class="lbl">Toneart'+(inSet?" i «"+esc(setName)+"»":" (standard)")+'</span><div class="kt"><button class="btn" data-act="key" data-d="-1" aria-label="Ned et halvtrinn">−</button><span class="kv">'+esc(ctx.curName)+'</span><button class="btn" data-act="key" data-d="1" aria-label="Opp et halvtrinn">+</button>'+(ctx.shift?'<button class="btn sm ghost" data-act="key" data-d="0">Original ('+esc(song.key)+')</button>':"")+'</div></div>'+
+   '<label class="fld"><span class="lbl">BPM</span><input id="f-bpm" data-f="bpm" inputmode="numeric" value="'+esc(song.bpm||"")+'"></label>'+
+   '<label class="fld"><span class="lbl">Takt</span><input id="f-time" data-f="time" value="'+esc(song.time||"")+'" placeholder="4/4"></label></div>'+
+   '<div class="g2" style="margin-top:12px"><label class="fld"><span class="lbl">Viktig før du spiller</span><textarea id="f-warn" rows="2" data-f="warn" placeholder="SKRU NED MAIN B">'+esc((song.warn||[]).join("\n"))+'</textarea><span class="hint">Én per linje. Vises som rødt banner øverst.</span></label>'+
+   '<label class="fld"><span class="lbl">Rigg</span><input id="f-rig" data-f="rig" value="'+esc(song.rig||"")+'" placeholder="Scene, patch, arp av/på"></label></div></div>';
+  h+='<h3 class="dh">Deler</h3><p class="hint" style="margin:0 0 4px">Trykk på en del for å endre navn, gjentak, lyd-cue, energi og tekst.</p>';
+  song.sections.forEach(function(sec,i){var o=sec.same?findSec(song,sec.same):null;var k=sec.kind||kindOf(sec.name||(o&&o.name));var e=Math.max(0,Math.min(5,sec.energy|0));var rp=rampOf(sec);var open=S.dsec===i;
+    var sum=[o?"gjentar «"+(o.name||"")+"»":"",sec.cue||"",sec.note||""].filter(function(x){return x;}).join(" · ")||chPreview(o||sec,ctx);
+    h+='<button class="prow k-'+k+'" data-act="dsec" data-si="'+i+'" aria-expanded="'+open+'"><span class="st" style="background:'+(rp?'linear-gradient(to bottom,var(--e'+rp[0]+'),var(--e'+rp[1]+'))':'var(--e'+e+')')+'"></span><span class="sn">'+esc(sec.name||"Del")+'</span>'+(sec.rep?'<span class="rep">'+esc(repText(sec.rep))+'</span>':"")+'<span class="pinfo">'+esc(sum)+'</span><span class="chev" aria-hidden="true">'+(open?"⌃":"⌄")+'</span></button>';
+    if(!open)return;
+    h+='<div class="dpan"><div class="g2"><label class="fld"><span class="lbl">Navn</span><input id="s'+i+'-name" data-f="name" data-si="'+i+'" value="'+esc(sec.name||"")+'"></label>'+
+      '<label class="fld"><span class="lbl">Gjentak</span><input id="s'+i+'-rep" data-f="rep" data-si="'+i+'" value="'+esc(sec.rep||"")+'" placeholder="2x"></label>'+
+      '<label class="fld"><span class="lbl">Lyd-cue</span><input id="s'+i+'-cue" data-f="cue" data-si="'+i+'" value="'+esc(sec.cue||"")+'" placeholder="MAIN B inn gradvis; STRINGS"></label>'+
+      '<label class="fld"><span class="lbl">Notat ved navnet</span><input id="s'+i+'-note" data-f="note" data-si="'+i+'" value="'+esc(sec.note||"")+'" placeholder="Oppbygging med trommer"></label>'+
+      '<label class="fld"><span class="lbl">Linje under delen</span><input id="s'+i+'-after" data-f="after" data-si="'+i+'" value="'+esc(sec.after||"")+'" placeholder="Hold Bb en takt"></label></div>'+
+      '<div class="fl"><span class="lbl">Energi</span>'+enBtns("energy",i,e,false)+'</div>'+
+      '<div class="fl"><span class="lbl">Bygges opp til</span>'+enBtns("energy2",i,rp?rp[1]:null,true)+'</div>'+
+      '<div class="fl">'+(i>0?'<label class="hint"><input type="checkbox" id="s'+i+'-page" data-f="page" data-si="'+i+'"'+(sec.page?" checked":"")+'> Ny skjerm fra denne delen</label>':"")+
+      (o?'<label class="hint"><input type="checkbox" id="s'+i+'-full" data-f="full" data-si="'+i+'"'+(sec.full?" checked":"")+'> Vis hele teksten her</label>':"")+'</div>'+
+      (o?'<p class="hint" style="margin:8px 0 0">Teksten og akkordene hentes fra «'+esc(o.name||"")+'». Vil du endre bare denne: Rediger → Akkorder → «Lag egen versjon».</p>':
+        '<label class="fld" style="margin-top:10px"><span class="lbl">Tekst og akkorder · akkord i [ ] rett før stavelsen</span><textarea id="s'+i+'-lines" class="mono" data-f="lines" data-si="'+i+'" rows="'+Math.max(2,(sec.lines||[]).length+1)+'">'+esc((sec.lines||[]).join("\n"))+'</textarea></label>')+'</div>';});
+  h+='<div class="fl" style="margin-top:18px"><button class="btn ghost" data-act="dmore" aria-expanded="'+(!!S.dmore)+'">'+(S.dmore?"Skjul flere valg":"Flere valg: versjoner og visning")+'</button></div>';
+  if(S.dmore)h+='<div class="ef" style="margin-top:10px"><h3>Versjoner</h3><div class="g2">'+
+   '<label class="fld"><span class="lbl">Navn på denne versjonen</span><input id="f-ver" data-f="ver" value="'+esc(song.ver||"")+'" placeholder="'+(song.base?"f.eks. Impuls":"tom = originalen")+'"><span class="hint">Vises i parentes: '+esc(song.title)+' ('+esc(song.ver||"…")+')</span></label>'+
+   '<div class="fld"><span class="lbl">Ny versjon for et annet band</span><div class="fl" style="margin:0"><input id="nv-name" placeholder="f.eks. Impuls" aria-label="Navn på ny versjon" style="flex:1;min-width:120px"><button class="btn" data-act="mkver">Lag versjon</button></div><span class="hint">Lager en kopi du kan endre uten å røre denne'+(inSet?", og bytter til kopien i denne setlisten":"")+'.</span></div></div>'+
+   (sib.length>1?'<p class="hint" style="margin:10px 0 0">Versjoner: '+sib.map(function(x){return (x===id0?"<b>":"")+esc(dname(S.songs[x]||song,x))+(x===id0?"</b>":"");}).join(" · ")+'.</p>':"")+
+   (song.base?'<div class="fl">'+(S.askDelVer===id0?'<button class="btn sm danger" data-act="delver">Bekreft: slett denne versjonen</button>':'<button class="btn sm ghost" data-act="askdelver">Slett denne versjonen</button>')+(used.length?'<span class="hint">Setlister som bruker den, får originalen i stedet.</span>':"")+'</div>':"")+
+   '<h3 style="margin-top:16px">Visning</h3><label class="fld" style="max-width:420px"><span class="lbl">Kompakt visning</span><select id="f-compact" data-f="compact">'+[["","Automatisk"],["on","Alltid"],["off","Aldri"]].map(function(o2){return '<option value="'+o2[0]+'"'+((song.compact||"")===o2[0]?" selected":"")+'>'+o2[1]+'</option>';}).join("")+'</select><span class="hint">Skjuler akkorder og takter som er like som i en tidligere del. Automatisk = bare når skriften ellers blir liten.</span></label></div>';
+  return h+'</div>';}
+function editInput(el){var f=el.getAttribute("data-f");if(!f||!S.draft)return;var si=el.getAttribute("data-si");
+  if(si!=null){var sec=S.draft.sections[+si];if(f==="lines")sec.lines=el.value.split("\n").map(function(l){return l.replace(/\s+$/,"");}).filter(function(l){return l.trim();});else if(f==="full")sec.full=el.checked;else if(f==="page")sec.page=el.checked;else sec[f]=el.value;}
+  else if(f==="warn")S.draft.warn=el.value.split("\n").map(function(x){return x.trim();}).filter(function(x){return x;});
+  else if(f==="bpm"){var n=parseInt(el.value,10);S.draft.bpm=isNaN(n)?"":n;}
+  else S.draft[f]=el.value;
+  save("songs/"+curScreen().id,S.draft);}
+
+/* ---------- render og hendelser ---------- */
+function render(){var app=$("app");var ae=document.activeElement;var fid=ae&&ae.id&&ae.getAttribute&&ae.getAttribute("data-q")?ae.id:null;
+  var live=S.view==="song"&&S.got.songs&&!S.err&&curList();
+  var ep=$("epal");
+  if(live){app.innerHTML=renderSong();var mode=S.edit?(S.etab==="chords"?"c":""):(S.emode&&$("sheet")?"e":"");
+    document.body.classList.toggle("emode",mode==="e");document.body.classList.toggle("echords",mode==="c");ep.hidden=!mode;
+    if(mode==="e"){if(!S.esel)S.esel=firstOwn();ep.innerHTML=epalHTML();markSel();}else if(mode==="c"){ep.innerHTML=cbarHTML();vvFix();}
+    padBar();
+    if(!S.edit){fit();prefit();}else afterEdit();}
+  else{if(S.view==="song"&&S.got.songs&&S.got.sets)S.view="home";app.innerHTML=renderHome();document.body.classList.remove("emode","echords");ep.hidden=true;padBar();}
+  if(fid){var fe=$(fid);if(fe){try{fe.focus();var n=fe.value.length;fe.setSelectionRange(n,n);}catch(e){}}}
+  lsSet();}
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){S.fontsOK=true;if(S.view==="song"&&!S.edit)fit();});
+var RM=false;try{RM=window.matchMedia("(prefers-reduced-motion: reduce)").matches;}catch(e){}
+function setT(el,tr,tf,op){el.style.transition=tr;el.style.transform=tf;el.style.opacity=op==null?"":op;}
+function clearT(el){el.style.transition="";el.style.transform="";el.style.opacity="";}
+function go(d,fromSwipe){var L=screens();if(!L)return;var n=S.idx+d;if(n<0||n>=L.length){bump(d);return;}S.idx=n;S.qk=false;S.psid=null;S.esel=null;render();window.scrollTo(0,0);
+  var app=$("app");if(RM){clearT(app);return;}var W=window.innerWidth;
+  setT(app,"none","translate3d("+(d*W*(fromSwipe?1:0.3))+"px,0,0)",fromSwipe?"":"0.4");void app.offsetWidth;
+  setT(app,"transform .24s cubic-bezier(.2,.8,.2,1), opacity .2s ease-out","translate3d(0,0,0)","1");
+  clearTimeout(go.t);go.t=setTimeout(function(){clearT(app);},280);}
+function bump(d){var app=$("app");if(RM)return;setT(app,"none","translate3d("+(-d*18)+"px,0,0)");void app.offsetWidth;setT(app,"transform .3s cubic-bezier(.2,.8,.2,1)","translate3d(0,0,0)");clearTimeout(go.t);go.t=setTimeout(function(){clearT(app);},320);}
+function openList(list,idx){S.list=list;S.idx=firstScreen(idx);S.view="song";S.edit=false;S.psid=null;S.esel=null;render();window.scrollTo(0,0);wake();}
+function firstOwn(){var e=curScreen();var s=e&&S.songs[e.id];var p=s&&partsOf(s)[e.part];return p&&p[0]?p[0].id:null;}
+function markSel(){var els=document.querySelectorAll(".sec");for(var i=0;i<els.length;i++)els[i].classList.toggle("esel",S.emode&&els[i].getAttribute("data-own")===S.esel);}
+function epalHTML(){var e=curScreen();var s=e&&S.songs[e.id];var sec=s&&S.esel?findSec(s,S.esel):null;var cur=sec?(sec.energy|0):-1;var rp=sec?rampOf(sec):null;
+  var nm=sec?'<b>'+esc(sec.name||"del")+'</b>':"";
+  var lab=!sec?'Trykk på en del, så velg farge':S.eramp?(S.eramp.s==null?'Bygg opp for '+nm+': velg hvor den <b>starter</b>':'Bygg opp for '+nm+': starter på '+(S.eramp.s||"–")+', velg <b>toppen</b>'):'Energi for '+nm+(rp?' · nå '+rp[0]+' → '+rp[1]:'')+' · trykk en annen del for å bytte';
+  return '<span class="el">'+lab+'</span>'+[0,1,2,3,4,5].map(function(v){var on=S.eramp?(S.eramp.s===v):(cur===v&&!rp);return '<button class="sw sw'+v+(on?" on":"")+'" data-act="eset" data-v="'+v+'" aria-label="Energi '+v+'">'+(v||"–")+'</button>';}).join("")+
+    '<button class="btn swr'+(S.eramp?" on":"")+'" data-act="eramp" aria-pressed="'+(!!S.eramp)+'">↗ Bygg opp</button><button class="btn" data-act="emode">Ferdig</button>';}
+function setEnergy(v,v2){var e=curScreen();if(!e||!S.esel||!S.songs[e.id])return;var song=clone(S.songs[e.id]);var sec=findSec(song,S.esel);if(!sec)return;
+  sec.energy=v;if(v2!=null&&v2!==v)sec.energy2=v2;else delete sec.energy2;S.songs[e.id]=song;save("songs/"+e.id,song,true);
+  var el=document.querySelector('.sec[data-own="'+S.esel+'"]');if(el){el.className=el.className.replace(/\be[0-5]\b/,"e"+v);var rp=rampOf(sec);el.style.borderImage=rp?"linear-gradient(to bottom,var(--e"+rp[0]+"),var(--e"+rp[1]+")) 1":"";}
+  var part=partsOf(song)[e.part]||[];for(var i=0;i<part.length-1;i++)if(part[i].id===S.esel){S.esel=part[i+1].id;break;}
+  markSel();$("epal").innerHTML=epalHTML();}
+function goLive(){S.live=true;S.lexit=false;S.panel=false;S.emode=false;S.edit=false;S.draft=null;
+  try{if(fsOK()&&!fsOn()){var el=document.documentElement;var p=(el.requestFullscreen||el.webkitRequestFullscreen).call(el);if(p&&p.catch)p.catch(function(){});}}catch(x){}wake();}
+function mkVer(){if(!ready())return;var inp=$("nv-name");var nm=inp?inp.value.trim():"";if(!nm){toast("Skriv navnet på versjonen først, f.eks. bandnavnet.",true);if(inp)inp.focus();return;}
+  flushAll();var e=curScreen();var src0=S.draft;var base=(src0.base&&S.songs[src0.base])?src0.base:e.id;var nid=slug(base+"-"+nm),k=2;while(S.songs[nid])nid=slug(base+"-"+nm)+"-"+(k++);
+  var copy=clone(src0);delete copy.updated;copy.ver=nm;copy.base=base;S.songs[e.id]=S.draft;S.songs[nid]=copy;save("songs/"+nid,copy,true);
+  S.draft=clone(copy);S.hist=[];S.utag=null;S.askDelVer=null;
+  if(S.list!=="__lib"){var sid=S.list,ix=e.si;setDoc(sid,function(sl){sl.items[ix].song=nid;});toast("Laget «"+dname(copy)+"». Den brukes nå i denne setlisten, originalen er uendret.",false,4500);}
+  else{S.idx=firstScreen(libIds().indexOf(nid));render();toast("Laget «"+dname(copy)+"». Originalen er uendret.",false,4000);}}
+function delVer(){if(!ready())return;var e=curScreen();var id=e.id;var s=S.songs[id];if(!s||!s.base)return;var base=s.base;
+  pending["songs/"+id]=null;delete pending["songs/"+id];clearTimeout(timers["songs/"+id]);
+  setsUsing(id).forEach(function(k){var sl=clone(S.sets[k]);(sl.items||[]).forEach(function(it){if(it.song===id)it.song=base;});S.sets[k]=sl;save("setlists/"+k,sl,true);});
+  S.db.doc("songs/"+id).delete().then(function(){toast("Versjonen er slettet",false,2500);},function(){toast("Kunne ikke slette versjonen",true);});
+  delete S.songs[id];S.edit=false;S.draft=null;S.askDelVer=null;
+  if(S.list==="__lib"){S.idx=firstScreen(Math.max(0,libIds().indexOf(base)));}render();}
+function ready(){if(SCENE)return false;if(S.fresh&&S.db)return true;toast("Kobler til lagringen …");return false;}
+function wake(){S.wantWake=true;try{if(navigator.wakeLock&&!S.wake)navigator.wakeLock.request("screen").then(function(l){S.wake=l;l.addEventListener("release",function(){S.wake=null;});},function(){});}catch(e){}}
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&S.wantWake&&S.view==="song")wake();});
+
+document.addEventListener("click",function(ev){var el=ev.target.closest?ev.target.closest("[data-act]"):null;
+  if(!el&&S.tapNav&&S.view==="song"&&!S.edit&&!S.emode&&$("sheet")&&!(ev.target.closest&&ev.target.closest(".bar,.pn,.epal,.qk,.lcl,input,textarea"))){go(ev.clientX>window.innerWidth/3?1:-1);return;}
+  if(!el){var sec=ev.target.closest?ev.target.closest(".sec"):null;
+    if(sec&&S.emode&&!S.edit){S.esel=sec.getAttribute("data-own");markSel();$("epal").innerHTML=epalHTML();return;}
+    return;}
+  var a=el.getAttribute("data-act"),id=el.getAttribute("data-id");
+  if(a==="home"){S.live=false;S.askDelVer=null;if(S.edit){flushAll();var he=curScreen();if(he&&S.draft)S.songs[he.id]=S.draft;S.edit=false;S.draft=null;}S.view="home";render();window.scrollTo(0,0);}
+  else if(a==="openset"){S.live=false;openList(id,0);}
+  else if(a==="liveset"){if(!(S.sets[id]&&(S.sets[id].items||[]).length))return;goLive();openList(id,0);}
+  else if(a==="golive"){goLive();render();window.scrollTo(0,0);}
+  else if(a==="liveexit"){if(!S.lexit){S.lexit=true;render();clearTimeout(S.lexT);S.lexT=setTimeout(function(){if(S.lexit){S.lexit=false;if(S.view==="song")render();}},2500);}
+    else{S.lexit=false;S.live=false;if(SCENE)S.view="home";try{if(fsOn())(document.exitFullscreen||document.webkitExitFullscreen).call(document);}catch(x){}render();window.scrollTo(0,0);}}
+  else if(a==="ghconnect"){ghConnect();}
+  else if(a==="ghsync"){if(Object.keys(Q).length)pump();ghPull(true);toast("Henter …");}
+  else if(a==="ghout"){if(!S.ghOut){S.ghOut=true;render();clearTimeout(S.ghOutT);S.ghOutT=setTimeout(function(){S.ghOut=false;if(S.view==="home")render();},3000);}
+    else{S.ghOut=false;if(Object.keys(Q).length){toast("Det ligger endringer som ikke er sendt ennå. Koble til nett først.",true,4000);render();return;}
+      try{["lb.gh","lb.ghc","lb.q","lb.cache"].forEach(function(k){localStorage.removeItem(k);});}catch(x){}location.reload();}}
+  else if(a==="htab"){S.htab=el.getAttribute("data-v");S.openSet=null;render();window.scrollTo(0,0);}
+  else if(a==="mkver"){mkVer();}
+  else if(a==="askdelver"){S.askDelVer=curScreen().id;render();}
+  else if(a==="delver"){delVer();}
+  else if(a==="openlib"){S.live=false;if(SCENE)goLive();openList("__lib",+el.getAttribute("data-i"));}
+  else if(a==="next")go(1);else if(a==="prev")go(-1);
+  else if(a==="panel"){S.panel=!S.panel;render();}
+  else if(a==="emode"){if(!S.emode&&!ready())return;S.emode=!S.emode;S.esel=null;S.eramp=null;render();}
+  else if(a==="eset"){var ev=+el.getAttribute("data-v");if(S.eramp){if(S.eramp.s==null){S.eramp={s:ev};$("epal").innerHTML=epalHTML();}else{var st=S.eramp.s;S.eramp=null;setEnergy(st,ev);}}else setEnergy(ev,null);}
+  else if(a==="eramp"){S.eramp=S.eramp?null:{};$("epal").innerHTML=epalHTML();}
+  else if(a==="qk"){S.qk=!S.qk;render();}
+  else if(a==="qkey"){qKey(+el.getAttribute("data-d"));}
+  else if(a==="kores"){KO={};saveKO();render();toast("Tonearter tilbakestilt til det som ligger i skyen",false,3000);}
+  else if(a==="dsec"){var dx=+el.getAttribute("data-si");S.dsec=S.dsec===dx?null:dx;render();}
+  else if(a==="dmore"){S.dmore=!S.dmore;render();}
+  else if(a==="energy2"){pushUndo();var si3=+el.getAttribute("data-si"),v3=+el.getAttribute("data-v");var sc3=S.draft.sections[si3];if(v3<0||v3===(sc3.energy|0))delete sc3.energy2;else sc3.energy2=v3;save("songs/"+curScreen().id,S.draft);render();}
+  else if(a==="fs"){toggleFs();}
+  else if(a==="tapnav"){S.tapNav=!S.tapNav;render();toast(S.tapNav?"Trykk på høyre side for neste, venstre tredjedel for forrige":"Trykk for å bla er av");}
+  else if(a==="nns"){S.nns=!S.nns;render();}
+  else if(a==="tab"){S.psid=el.getAttribute("data-sid");render();}
+  else if(a==="edit"){if(!S.edit&&!ready())return;if(S.edit){flushAll();var e=curScreen();S.songs[e.id]=S.draft;S.edit=false;S.draft=null;}else{var en=curScreen();if(!S.songs[en.id])return;S.draft=clone(S.songs[en.id]);S.edit=true;S.live=false;S.askDelVer=null;S.emode=false;S.qk=false;S.dsec=null;S.etab="chords";S.hist=[];S.utag=null;S.csel=S.ccar=null;S.addAt=null;}render();window.scrollTo(0,0);}
+  else if(a==="etab"){S.etab=el.getAttribute("data-v");S.csel=S.ccar=null;S.addAt=null;S.utag=null;render();window.scrollTo(0,0);}
+  else if(a==="undo"){if(S.hist.length){S.draft=JSON.parse(S.hist.pop());S.utag=null;S.csel=S.ccar=null;S.addAt=null;dirty();render();toast("Angret",false,1200);}}
+  else if(a==="csel"){var ck={si:+el.getAttribute("data-si"),li:+el.getAttribute("data-li"),ci:+el.getAttribute("data-ci")};var same=!!(S.csel&&S.csel.si===ck.si&&S.csel.li===ck.li&&S.csel.ci===ck.ci);S.csel=same?null:ck;S.ccar=null;S.utag=null;render();if(!same)ensureVis();}
+  else if(a==="cpos"){var cp={si:+el.getAttribute("data-si"),li:+el.getAttribute("data-li"),p:+el.getAttribute("data-p")};if(S.csel)cmoveTo(cp.si,cp.li,cp.p);else S.ccar=isCar(cp.si,cp.li,cp.p)?null:cp;S.utag=null;render();ensureVis();}
+  else if(a==="cmv"){cmove(+el.getAttribute("data-d"));renderApp();ensureVis();}
+  else if(a==="cdel"){cdel();render();}
+  else if(a==="cnone"){S.csel=S.ccar=null;render();}
+  else if(a==="cpick"){var pv=el.getAttribute("data-v");if(S.csel){crename(pv,true);render();}else if(S.ccar){cinsert(pv,true);render();ensureVis();}}
+  else if(a==="cins"){var cin=$("cin");if(cin&&cin.value.trim()){cinsert(cin.value,false);render();ensureVis();}else if(cin)cin.focus();}
+  else if(/^p(mv|rm|add|rep2|new|copy|page|rep)$/.test(a)){var psi=+el.getAttribute("data-si");
+    if(a==="pmv")pmv(psi,+el.getAttribute("data-d"));else if(a==="prm")prm(psi);else if(a==="padd")S.addAt=S.addAt===psi?null:psi;else if(a==="prep2")padd(el.getAttribute("data-from"),psi);
+    else if(a==="pnew")pnew(psi);else if(a==="pcopy")pcopy(psi);else if(a==="ppage")ppage(psi);else if(a==="prep")prep(psi);render();}
+  else if(a==="energy"){pushUndo();var si=+el.getAttribute("data-si");var sc4=S.draft.sections[si];sc4.energy=+el.getAttribute("data-v");if(+sc4.energy2===sc4.energy)delete sc4.energy2;save("songs/"+curScreen().id,S.draft);render();}
+  else if(a==="key"){if(!ready())return;var ent=curScreen();var song=S.draft;var c=ctxFor(song,ent.item);var d=+el.getAttribute("data-d");
+    var name=d===0?song.key:keyName(c.cur.pc+d,c.cur.minor);
+    if(S.list!=="__lib"){var sid=S.list,ix=ent.si;setDoc(sid,function(sl){sl.items[ix].key=name===song.key?"":name;});}
+    else{song.playKey=name===song.key?"":name;save("songs/"+ent.id,song,true);render();}}
+  else if(a==="backup")backup();
+  else if(a==="newset"){S.newSet=!S.newSet;render();}
+  else if(a==="createset"){var nm=$("ns-name").value.trim(),dt=$("ns-date").value;if(!nm){$("ns-err").textContent="Skriv inn et navn først.";return;}
+    var nid=slug((dt||"")+"-"+nm);S.sets[nid]={name:nm,date:dt,items:[]};save("setlists/"+nid,S.sets[nid],true);S.newSet=false;S.openSet=nid;render();}
+  else if(a==="toggleset"){S.openSet=S.openSet===id?null:id;S.askDel=null;render();}
+  else if((a==="mv"||a==="rm"||a==="addsong"||a==="rename"||a==="delset"||a==="createset")&&!ready()){return;}
+  else if(a==="mv"){var i2=+el.getAttribute("data-i"),dd=+el.getAttribute("data-d");setDoc(id,function(sl){var j=i2+dd;if(j<0||j>=sl.items.length)return;var t=sl.items[i2];sl.items[i2]=sl.items[j];sl.items[j]=t;});}
+  else if(a==="rm")setDoc(id,function(sl){sl.items.splice(+el.getAttribute("data-i"),1);});
+  else if(a==="addsong"){var pick=el.getAttribute("data-song");if(pick){setDoc(id,function(sl){sl.items=sl.items||[];sl.items.push({song:pick});});toast("La til «"+dname(S.songs[pick],pick)+"»");}}
+  else if(a==="rename")setDoc(id,function(sl){sl.name=$("sn-"+id).value.trim()||sl.name;sl.date=$("sd-"+id).value||sl.date;});
+  else if(a==="askdel"){S.askDel=id;render();}
+  else if(a==="delset"){S.db.doc("setlists/"+id).delete().then(function(){toast("Setlisten er slettet");},function(){toast("Kunne ikke slette",true);});delete S.sets[id];S.askDel=null;S.openSet=null;render();}
+});
+document.addEventListener("input",function(ev){var q=ev.target.getAttribute&&ev.target.getAttribute("data-q");
+  if(q){S.q=ev.target.value;var rl=$("r-"+q);if(rl)rl.innerHTML=resHTML(q,S.q);return;}
+  var t=ev.target;
+  if(t.getAttribute&&t.getAttribute("data-lq")){S.lq=t.value;var ll=$("liblist");if(ll)ll.innerHTML=libListHTML();return;}
+  if(t.id==="cin"){var v=t.value;t.classList.toggle("bad",!!v.trim()&&!parseChord(normCh(v)));if(S.csel&&v.trim()){crename(v,false);renderApp();}return;}
+  if(S.edit&&t.getAttribute&&t.getAttribute("data-f")){pushUndo("f:"+t.id);editInput(t);}});
+document.addEventListener("change",function(ev){var t=ev.target;
+  if(GH&&t.getAttribute&&t.getAttribute("data-ghimp")){var f2=t.files&&t.files[0];if(!f2)return;var r2=new FileReader();
+    r2.onload=function(){try{var d=JSON.parse(r2.result);if(!d||!d.songs||!d.setlists)throw 0;var ns=0,nl=0;
+      Object.keys(d.songs).forEach(function(id){Q["songs/"+id+".json"]={d:d.songs[id]};ns++;});Object.keys(d.setlists).forEach(function(id){Q["setlists/"+id+".json"]={d:d.setlists[id]};nl++;});
+      saveQ();emit();kick(200);toast("Importerer "+ns+" sanger og "+nl+" setlister …",false,4000);}
+      catch(x){toast("Fant ingen blekker i fila.",true);}};
+    r2.readAsText(f2);t.value="";return;}
+  if(SCENE&&t.getAttribute&&t.getAttribute("data-imp")){var f=t.files&&t.files[0];if(!f)return;var r=new FileReader();
+    r.onload=function(){try{var d=JSON.parse(r.result);if(!d||!d.songs||!d.setlists)throw 0;d.at=d.at||new Date().toISOString();try{localStorage.setItem("lb.import",JSON.stringify(d));}catch(x){}
+      S.songs=d.songs;S.sets=d.setlists;S.dataAt=d.at;render();toast("Oppdatert: "+Object.keys(d.songs).length+" sanger og "+Object.keys(d.setlists).length+" setlister",false,3500);}
+      catch(x){toast("Fant ingen blekker i fila. Bruk fila fra «Last ned til Scene-appen».",true);}};
+    r.readAsText(f);t.value="";return;}
+  if(t.classList&&t.classList.contains("vsel")){if(!ready())return;var sid=t.getAttribute("data-id"),ix=+t.getAttribute("data-i"),v=t.value;setDoc(sid,function(sl){if(sl.items[ix])sl.items[ix].song=v;});toast("Byttet til «"+dname(S.songs[v],v)+"»");return;}
+  if(S.edit&&t.type==="checkbox"){pushUndo();editInput(t);}});
+document.addEventListener("keydown",function(ev){var t=ev.target;
+  if(t&&(t.id==="gh-t"||t.id==="gh-r")&&ev.key==="Enter"){ev.preventDefault();ghConnect();return;}
+  if(t&&t.id==="cin"&&ev.key==="Enter"){ev.preventDefault();if(S.ccar&&t.value.trim()){cinsert(t.value,false);render();ensureVis();}else t.blur();return;}
+  if(S.edit&&S.etab==="chords"&&S.csel&&!(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))){
+    if(ev.key==="ArrowLeft"||ev.key==="ArrowRight"){ev.preventDefault();cmove((ev.key==="ArrowLeft"?-1:1)*(ev.altKey?2:1));renderApp();ensureVis();}
+    else if(ev.key==="Backspace"||ev.key==="Delete"){ev.preventDefault();cdel();render();}
+    else if(ev.key==="Escape"){S.csel=null;render();}}});
+document.addEventListener("keydown",function(ev){if(S.view!=="song"||S.edit)return;var tg=ev.target&&ev.target.tagName;if(tg==="INPUT"||tg==="TEXTAREA"||tg==="SELECT")return;
+  if(ev.key==="ArrowRight"||ev.key==="PageDown"||ev.key==="ArrowDown"){ev.preventDefault();go(1);}
+  else if(ev.key==="ArrowLeft"||ev.key==="PageUp"||ev.key==="ArrowUp"){ev.preventDefault();go(-1);}});
+var drag=null;
+function canSwipe(t){return S.view==="song"&&!S.edit&&!!$("sheet")&&!(t&&t.closest&&t.closest(".tabs,.epal,input,textarea,select"));}
+document.addEventListener("touchstart",function(ev){if(ev.touches.length!==1||!canSwipe(ev.target)){drag=null;return;}var t=ev.touches[0];drag={x:t.clientX,y:t.clientY,t:Date.now(),dx:0,on:false,dead:false};},{passive:true});
+document.addEventListener("touchmove",function(ev){if(!drag||drag.dead)return;if(ev.touches.length!==1){springBack();drag=null;return;}
+  var t=ev.touches[0];var dx=t.clientX-drag.x,dy=t.clientY-drag.y;
+  if(!drag.on){if(Math.abs(dy)>12&&Math.abs(dy)>Math.abs(dx)){drag.dead=true;return;}if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)*1.2){drag.on=true;drag.x=t.clientX;drag.t=Date.now();dx=0;}else return;}
+  ev.preventDefault();var L=screens()||[];var edge=(dx<0&&S.idx>=L.length-1)||(dx>0&&S.idx<=0);drag.dx=dx;drag.edge=edge;
+  if(!RM)setT($("app"),"none","translate3d("+(edge?dx*0.25:dx)+"px,0,0)");},{passive:false});
+function springBack(){var app=$("app");if(RM){clearT(app);return;}setT(app,"transform .22s cubic-bezier(.2,.8,.2,1)","translate3d(0,0,0)");clearTimeout(go.t);go.t=setTimeout(function(){clearT(app);},260);}
+function endDrag(){if(!drag)return;var d=drag;drag=null;if(!d.on)return;var W=window.innerWidth;var dt=Math.max(1,Date.now()-d.t);var v=Math.abs(d.dx)/dt;var dir=d.dx<0?1:-1;
+  if(!d.edge&&(Math.abs(d.dx)>W*0.18||(v>0.45&&Math.abs(d.dx)>40))){
+    if(RM){go(dir,true);return;}var app=$("app");var ms=Math.max(80,Math.min(160,(W-Math.abs(d.dx))/Math.max(v,1.2)));
+    setT(app,"transform "+ms+"ms ease-in","translate3d("+(-dir*W)+"px,0,0)");setTimeout(function(){go(dir,true);},ms);}
+  else springBack();}
+document.addEventListener("touchend",endDrag,{passive:true});
+document.addEventListener("touchcancel",function(){if(drag&&drag.on){drag=null;springBack();}drag=null;},{passive:true});
+var rz;function onRz(){clearTimeout(rz);rz=setTimeout(function(){if(S.view==="song"&&!S.edit)fit();},120);}
+window.addEventListener("resize",onRz);window.addEventListener("orientationchange",onRz);
+
+function standalone(){try{return !!(navigator.standalone||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches));}catch(e){return false;}}
+function fsOK(){return !standalone()&&!!(document.fullscreenEnabled||document.webkitFullscreenEnabled);}
+function fsOn(){return !!(document.fullscreenElement||document.webkitFullscreenElement);}
+function toggleFs(){try{var p;if(fsOn())p=(document.exitFullscreen||document.webkitExitFullscreen).call(document);else{var el=document.documentElement;p=(el.requestFullscreen||el.webkitRequestFullscreen).call(el);}
+  if(p&&p.catch)p.catch(function(){toast("Fullskjerm er ikke tilgjengelig her",true);});}catch(e){toast("Fullskjerm er ikke tilgjengelig her",true);}}
+document.addEventListener("fullscreenchange",function(){render();});document.addEventListener("webkitfullscreenchange",function(){render();});
+function backup(){if(!S.dl)return;var d=new Date();var p=function(n){return (n<10?"0":"")+n;};
+  var name="live-blekker-"+d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"-"+p(d.getHours())+p(d.getMinutes())+".json";flushAll();
+  S.dl.save({filename:name,data:JSON.stringify({at:d.toISOString(),songs:S.songs,setlists:S.sets})}).then(function(){toast("Lagret. Åpne Scene-appen og trykk «Hent oppdatering».",false,4000);},function(e){if(e&&e.code!=="declined")toast("Kunne ikke lagre fila ("+e.code+")",true);});}
+
+/* ---------- lagring i GitHub ----------
+   Blekkene ligger som JSON-filer i et privat repo (songs/<id>.json, setlists/<id>.json).
+   Appen leser og skriver med en nøkkel (fine-grained token) som bare ligger på denne enheten.
+   Endringer legges først i en kø her (lb.q) og sendes én og én så snart det er nett. */
+var GH=null,Q={},GHS={sha:{},doc:{},tree:"",at:"",err:null,off:false,pulling:false,pumping:false,loaded:false},SUBS={songs:[],setlists:[]};
+function ghLoad(){try{GH=JSON.parse(localStorage.getItem("lb.gh")||"null");}catch(e){GH=null;}
+  try{var c=JSON.parse(localStorage.getItem("lb.ghc")||"null");if(c){GHS.sha=c.sha||{};GHS.doc=c.doc||{};GHS.tree=c.tree||"";GHS.at=c.at||"";}}catch(e){}
+  try{Q=JSON.parse(localStorage.getItem("lb.q")||"{}")||{};}catch(e){Q={};}}
+function ghSaveC(){try{localStorage.setItem("lb.ghc",JSON.stringify({sha:GHS.sha,doc:GHS.doc,tree:GHS.tree,at:GHS.at}));}catch(e){}}
+function saveQ(){try{localStorage.setItem("lb.q",JSON.stringify(Q));}catch(e){toast("Får ikke lagret på enheten (lagringen er full).",true,5000);}}
+function ghFetch(g,method,path,body,raw){var h={"Authorization":"Bearer "+g.t,"Accept":raw?"application/vnd.github.raw+json":"application/vnd.github+json"};
+  var o={method:method,headers:h};if(body){h["Content-Type"]="application/json";o.body=JSON.stringify(body);}
+  return fetch("https://api.github.com/repos/"+g.repo+path,o);}
+function api(m,p,b,raw){return ghFetch(GH,m,p,b,raw);}
+function b64e(str){var b=new TextEncoder().encode(str),r="";for(var i=0;i<b.length;i+=0x8000)r+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(r);}
+function devName(){var u=navigator.userAgent||"";return /iPad|iPhone/.test(u)||(/Macintosh/.test(u)&&navigator.maxTouchPoints>1)?"iPad":"Mac";}
+function fpath(p){return "/contents/"+p.split("/").map(encodeURIComponent).join("/");}
+function colOf(p){var m=/^(songs|setlists)\/(.+)\.json$/.exec(p);return m?{c:m[1],id:m[2]}:null;}
+function snapFor(col){var docs=[],seen={};
+  function add(p,d){var o=colOf(p);if(!o||o.c!==col||d==null)return;seen[p]=1;docs.push({id:o.id,exists:true,data:function(){return clone(d);}});}
+  Object.keys(GHS.doc).forEach(function(p){var q=Q[p];if(q){if(q.d!==null)add(p,q.d);seen[p]=1;}else add(p,GHS.doc[p]);});
+  Object.keys(Q).forEach(function(p){if(!seen[p])add(p,Q[p].d);});
+  return {docs:docs};}
+function emit(){if(!GHS.loaded)return;["songs","setlists"].forEach(function(c){var sn=snapFor(c);SUBS[c].forEach(function(f){f(sn);});});showSync();}
+function hhmm(s){var d=new Date(s);if(isNaN(d))return "";var p=function(n){return (n<10?"0":"")+n;};var t=new Date();return (d.toDateString()===t.toDateString()?"":d.getDate()+". "+MON[d.getMonth()]+" ")+"kl. "+p(d.getHours())+":"+p(d.getMinutes());}
+function syncInfo(){if(!GH)return null;var n=Object.keys(Q).length;
+  if(GHS.err==="auth")return {c:"bad",t:"Nøkkelen virker ikke – koble til på nytt"};
+  if(GHS.err==="norepo")return {c:"bad",t:"Fant ikke repoet"};
+  if(n)return {c:"wait",t:n+" "+(n===1?"endring":"endringer")+(GHS.off?" venter på nett":" sendes …")};
+  if(GHS.off)return {c:"wait",t:"Uten nett · viser lagret kopi"+(GHS.at?" fra "+hhmm(GHS.at):"")};
+  return {c:"ok",t:"Alt er lagret"+(GHS.at?" · hentet "+hhmm(GHS.at):"")};}
+function showSync(){var el=$("sync"),i=syncInfo();if(el&&i){el.className="sync "+i.c;el.textContent=i.t;}
+  var n=GH?Object.keys(Q).length:0;try{if(n)document.documentElement.setAttribute("data-q",GHS.off?"off":"on");else document.documentElement.removeAttribute("data-q");}catch(e){}}
+var ghdb={collection:function(c){return {onSnapshot:function(ok){SUBS[c].push(ok);if(GHS.loaded)ok(snapFor(c));return function(){};}};},
+  doc:function(path){var p=path+".json";return {
+    set:function(d){Q[p]={d:clone(d)};saveQ();kick();return Promise.resolve();},
+    delete:function(){Q[p]={d:null};saveQ();kick();return Promise.resolve();}};}};
+function kick(ms){clearTimeout(kick.t);kick.t=setTimeout(pump,ms==null?1200:ms);showSync();}
+async function ghPull(force){if(!GH||GHS.pulling)return;GHS.pulling=true;
+  try{var r=await api("GET","/git/trees/"+encodeURIComponent(GH.br||"main")+"?recursive=1&t="+Date.now());
+    if(r.status===401||r.status===403){GHS.err="auth";render();return;}
+    if(r.status===404||r.status===409){var r2=await api("GET","?t="+Date.now());
+      if(r2.status===401||r2.status===403){GHS.err="auth";render();return;}
+      if(r2.status===404){GHS.err="norepo";render();return;}
+      if(r2.ok){var info=await r2.json();if(r.status===404&&info.default_branch&&info.default_branch!==GH.br){GH.br=info.default_branch;try{localStorage.setItem("lb.gh",JSON.stringify(GH));}catch(x){}GHS.pulling=false;return ghPull(force);}}
+      else{GHS.off=true;showSync();return;}
+      GHS.err=null;GHS.off=false;GHS.tree="";GHS.sha={};GHS.doc={};GHS.at=new Date().toISOString();GHS.loaded=true;ghSaveC();emit();return;}
+    if(!r.ok){GHS.off=true;showSync();return;}
+    var j=await r.json();GHS.err=null;GHS.off=false;
+    if(j.sha===GHS.tree&&GHS.loaded&&!force){GHS.at=new Date().toISOString();ghSaveC();showSync();return;}
+    var want={};(j.tree||[]).forEach(function(e){if(e.type==="blob"&&colOf(e.path))want[e.path]=e.sha;});
+    var need=Object.keys(want).filter(function(p){return GHS.sha[p]!==want[p]||!GHS.doc[p];});var got={},bad=[];
+    for(var i=0;i<need.length;i+=6){await Promise.all(need.slice(i,i+6).map(async function(p){var b=await api("GET","/git/blobs/"+want[p],null,true);if(!b.ok)throw new Error("blob "+b.status);
+      var txt=await b.text();try{got[p]=JSON.parse(txt);}catch(x){bad.push(p);}}));}
+    var doc={},sha={};Object.keys(want).forEach(function(p){if(got[p]){doc[p]=got[p];sha[p]=want[p];}else if(GHS.doc[p]&&bad.indexOf(p)<0){doc[p]=GHS.doc[p];sha[p]=want[p];}else if(GHS.doc[p]){doc[p]=GHS.doc[p];sha[p]=want[p];}});
+    GHS.doc=doc;GHS.sha=sha;GHS.tree=j.sha;GHS.at=new Date().toISOString();GHS.loaded=true;ghSaveC();emit();
+    if(bad.length)toast("Kunne ikke lese "+bad.map(function(p){return p.replace(/\.json$/,"");}).join(", ")+" (feil i fila)",true,5000);}
+  catch(e){GHS.off=true;showSync();}
+  finally{GHS.pulling=false;}}
+async function pump(){if(!GH||GHS.pumping||GHS.err==="auth")return;if(!Object.keys(Q).length){showSync();return;}GHS.pumping=true;showSync();
+  try{for(;;){var ks=Object.keys(Q);if(!ks.length)break;var p=ks[0],it=Q[p];var res=await pushOne(p,it,false);
+      if(res!=="ok"){if(res==="auth"){GHS.err="auth";render();}else GHS.off=true;break;}
+      GHS.off=false;if(Q[p]===it){delete Q[p];saveQ();}}}
+  finally{GHS.pumping=false;showSync();if(Object.keys(Q).length&&!GHS.off&&GHS.err!=="auth")kick(4000);}}
+async function pushOne(p,it,retry){
+  function code(st){return st===401||st===403?"auth":"off";}
+  try{var url=fpath(p),del=it.d===null,msg=(del?"Slett ":"Oppdater ")+p.replace(/\.json$/,"")+" ("+devName()+")";
+    var body={message:msg};if(!del)body.content=b64e(JSON.stringify(it.d,null,2)+"\n");
+    if(GHS.sha[p])body.sha=GHS.sha[p];
+    if(del&&!body.sha){var g=await api("GET",url+"?t="+Date.now());if(g.status===404){delete GHS.doc[p];ghSaveC();return "ok";}if(!g.ok)return code(g.status);body.sha=(await g.json()).sha;}
+    var r=await api(del?"DELETE":"PUT",url,body);
+    if(r.ok){if(del){delete GHS.sha[p];delete GHS.doc[p];}else{var j=await r.json();GHS.sha[p]=j.content&&j.content.sha;GHS.doc[p]=clone(it.d);}GHS.tree="";ghSaveC();return "ok";}
+    if((r.status===409||r.status===422||(del&&r.status===404))&&!retry){
+      /* Fila er endret fra en annen enhet (eller finnes ikke): hent gjeldende versjon og skriv over med denne endringen. */
+      var g2=await api("GET",url+"?t="+Date.now());
+      if(g2.status===404)delete GHS.sha[p];else if(g2.ok)GHS.sha[p]=(await g2.json()).sha;else return code(g2.status);
+      if(del&&!GHS.sha[p]){delete GHS.doc[p];ghSaveC();return "ok";}
+      return pushOne(p,it,true);}
+    return code(r.status);}
+  catch(e){return "off";}}
+function setupHTML(msg){var u=navigator.userAgent||"";var ipad=/iPad|iPhone/.test(u)||(/Macintosh/.test(u)&&navigator.maxTouchPoints>1);
+  return '<div class="setup"><h2>Koble til blekkene dine</h2><p>Blekkene ligger i et privat GitHub-repo. Lim inn nøkkelen én gang på denne enheten, så hentes og lagres alt der.</p>'+
+    '<label for="gh-t">Nøkkel</label><input id="gh-t" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="github_pat_…">'+
+    '<label for="gh-r">Repo</label><input id="gh-r" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc((GH&&GH.repo)||S.ghRepo||"mwalderhaug/live-blekker-data")+'">'+
+    '<div class="row"><button class="btn pri" data-act="ghconnect"'+(S.ghBusy?" disabled":"")+'>'+(S.ghBusy?"Kobler til …":"Koble til")+'</button></div>'+
+    ((msg||S.ghErr)?'<p class="err">'+esc(msg||S.ghErr)+'</p>':"")+
+    (ipad&&!standalone()?'<p class="tip">Legg appen til på Hjem-skjermen først (Del → «Legg til på Hjem-skjerm») og koble til derfra. Safari og Hjem-skjerm-appen husker hver sin nøkkel.</p>':"")+
+    '<p class="tip">Nøkkelen lagres bare på denne enheten og gir bare tilgang til blekke-repoet.</p></div>';}
+async function ghConnect(){var ti=$("gh-t"),ri=$("gh-r");var t=ti?ti.value.trim():"",repo=(ri?ri.value.trim():"").replace(/^https?:\/\/github\.com\//,"").replace(/\.git$/,"").replace(/\/+$/,"");
+  S.ghRepo=repo;if(!t){S.ghErr="Lim inn nøkkelen først.";render();return;}if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){S.ghErr="Repoet skrives som eier/navn, f.eks. mwalderhaug/live-blekker-data.";render();return;}
+  S.ghBusy=true;S.ghErr=null;render();
+  try{var r=await ghFetch({t:t,repo:repo},"GET","?t="+Date.now());
+    if(r.status===401){S.ghErr="Nøkkelen er feil eller utløpt.";}
+    else if(r.status===404||r.status===403){S.ghErr="Fant ikke repoet med denne nøkkelen. Sjekk at nøkkelen har tilgang til «"+repo+"».";}
+    else if(!r.ok){S.ghErr="GitHub svarte ikke ("+r.status+"). Prøv igjen.";}
+    else{var info=await r.json();GH={t:t,repo:repo,br:info.default_branch||"main"};try{localStorage.setItem("lb.gh",JSON.stringify(GH));}catch(x){}
+      S.ghBusy=false;GHS.err=null;startGH();toast("Koblet til",false,2500);return;}}
+  catch(e){S.ghErr="Får ikke kontakt med GitHub. Sjekk nettet.";}
+  S.ghBusy=false;render();}
+function startGH(){S.db=ghdb;S.err=null;
+  ghdb.collection("songs").onSnapshot(function(snap){var m={};snap.docs.forEach(function(d){if(d.exists)m[d.id]=busy("songs/"+d.id)&&S.songs[d.id]?S.songs[d.id]:d.data();});Object.keys(S.songs).forEach(function(id){if(!m[id]&&busy("songs/"+id))m[id]=S.songs[id];});S.songs=m;S.got.songs=true;S.fresh=true;S.slow=false;if(!S.edit)render();});
+  ghdb.collection("setlists").onSnapshot(function(snap){var m={};snap.docs.forEach(function(d){if(d.exists)m[d.id]=busy("setlists/"+d.id)&&S.sets[d.id]?S.sets[d.id]:d.data();});Object.keys(S.sets).forEach(function(id){if(!m[id]&&busy("setlists/"+id))m[id]=S.sets[id];});S.sets=m;S.got.sets=true;S.freshSets=true;if(!S.edit)render();});
+  if(GHS.at){GHS.loaded=true;emit();}else render();
+  ghPull().then(function(){pump();});}
+window.addEventListener("online",function(){if(!GH)return;GHS.off=false;pump();ghPull();});
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&GH){pump();ghPull();}});
+setInterval(function(){if(!GH||document.visibilityState!=="visible")return;if(Object.keys(Q).length)pump();else if(!S.live&&!S.edit)ghPull();},60000);
+
+/* ---------- oppstart ---------- */
+function use(n){try{if(window.claude&&typeof window.claude.use==="function")return Promise.resolve(window.claude.use(n));}catch(e){}return Promise.resolve(null);}
+function cache(){}
+if(SCENE){(function(){try{KO=JSON.parse(localStorage.getItem("lb.keys")||"{}")||{};}catch(e){KO={};}var emb=window.__SCENE,imp=null;try{imp=JSON.parse(localStorage.getItem("lb.import")||"null");}catch(e){}
+  var d=(imp&&imp.songs&&imp.setlists&&String(imp.at||"")>String(emb.at||""))?imp:emb;S.songs=d.songs||{};S.sets=d.setlists||emb.setlists||{};S.dataAt=d.at||"";S.got.songs=S.got.sets=true;render();})();}
+else{
+ghLoad();if(GH)startGH();else render();
+setTimeout(function(){if(GH&&!S.got.songs&&!GHS.err){S.slow=true;render();}},10000);
+if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost"))navigator.serviceWorker.register("sw.js").catch(function(){});
+}
+})();
+</script>
+</body>
+</html>
