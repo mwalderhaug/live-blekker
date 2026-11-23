@@ -529,9 +529,15 @@ function initial(t){var c=String(t||"").trim().charAt(0).toLocaleUpperCase("nb")
 function tempo(s){return [s.bpm?s.bpm+" BPM":"",s.time||"4/4"].filter(function(x){return x;}).join(" · ");}
 function nrm(x){x=String(x||"").toLowerCase();try{x=x.normalize("NFD").replace(/[\u0300-\u036f]/g,"");}catch(e){}return x;}
 function songLabel(s,id){return esc(s?(s.title||id):id)+(s&&s.ver?' <span class="vtag">('+esc(s.ver)+')</span>':"")+(s&&s.artist?' <span class="muted">– '+esc(s.artist)+'</span>':"");}
-function resHTML(id,q){var nq=nrm(q).trim();var ids=libIds().filter(function(sid){var s=S.songs[sid];return !nq||nrm((s.title||"")+" "+(s.ver||"")+" "+(s.artist||"")).indexOf(nq)>=0;});
-  if(!ids.length)return '<p class="hint">Ingen sanger passer «'+esc(q)+'».</p>';
-  return ids.map(function(sid){return '<button class="res" data-act="addsong" data-id="'+esc(id)+'" data-song="'+esc(sid)+'">'+songLabel(S.songs[sid],sid)+'</button>';}).join("");}
+/* Sanger som allerede ligger i setlisten (alle versjoner av samme sang), med første plassering. */
+function inSet(id){var g={},n={};((S.sets[id]||{}).items||[]).forEach(function(it,i){if(!it.song)return;var k=groupOf(it.song);if(!g[k]){g[k]=it.song;n[k]=i+1;}});return {g:g,n:n};}
+/* «Legg til sang»: sanger som allerede er med, vises ikke som valg. Søker man på en av dem, står det hvor den ligger. */
+function resHTML(id,q){var nq=nrm(q).trim();var u=inSet(id);var all=libIds().filter(function(sid){var s=S.songs[sid];return !nq||nrm((s.title||"")+" "+(s.ver||"")+" "+(s.artist||"")).indexOf(nq)>=0;});
+  var ids=all.filter(function(sid){return !u.g[groupOf(sid)];});
+  var had=[];if(nq)all.forEach(function(sid){var k=groupOf(sid);if(u.g[k]&&had.indexOf(k)<0)had.push(k);});
+  var note=had.length?'<p class="hint rhave">Allerede i setlisten: '+had.map(function(k){return u.n[k]+". "+esc(dname(S.songs[u.g[k]],u.g[k]));}).join(" · ")+'</p>':"";
+  if(!ids.length)return note||(!nq&&all.length?'<p class="hint">Alle sangene ligger allerede i setlisten.</p>':'<p class="hint">Ingen sanger passer «'+esc(q)+'».</p>');
+  return note+ids.map(function(sid){return '<button class="res" data-act="addsong" data-id="'+esc(id)+'" data-song="'+esc(sid)+'">'+songLabel(S.songs[sid],sid)+'</button>';}).join("");}
 function dateLabel(d){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||"");if(!m)return d||"";return (+m[3])+". "+MON[+m[2]-1]+" "+m[1];}
 function slug(s){return String(s).toLowerCase().replace(/æ/g,"ae").replace(/ø/g,"o").replace(/å/g,"a").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,80)||"x";}
 
@@ -949,7 +955,11 @@ document.addEventListener("click",function(ev){var el=ev.target.closest?ev.targe
   else if((a==="mv"||a==="rm"||a==="addsong"||a==="rename"||a==="delset"||a==="createset")&&!ready()){return;}
   else if(a==="mv"){var i2=+el.getAttribute("data-i"),dd=+el.getAttribute("data-d");setDoc(id,function(sl){var j=i2+dd;if(j<0||j>=sl.items.length)return;var t=sl.items[i2];sl.items[i2]=sl.items[j];sl.items[j]=t;});}
   else if(a==="rm")setDoc(id,function(sl){sl.items.splice(+el.getAttribute("data-i"),1);});
-  else if(a==="addsong"){var pick=el.getAttribute("data-song");if(pick){setDoc(id,function(sl){sl.items=sl.items||[];sl.items.push({song:pick});});toast("La til «"+dname(S.songs[pick],pick)+"»");}}
+  else if(a==="addsong"){var pick=el.getAttribute("data-song"),had=pick&&inSet(id).g[groupOf(pick)];
+    /* Lista tegnes på nytt etter hvert valg, så et raskt dobbelttrykk skal ikke legge til sangen som rykker opp. */
+    if(!pick||Date.now()-(S.addAt||0)<600)return;
+    if(had){toast("«"+dname(S.songs[had],had)+"» ligger allerede i setlisten");return;}
+    S.addAt=Date.now();setDoc(id,function(sl){sl.items=sl.items||[];sl.items.push({song:pick});});toast("La til «"+dname(S.songs[pick],pick)+"»");}
   else if(a==="rename")setDoc(id,function(sl){sl.name=$("sn-"+id).value.trim()||sl.name;sl.date=$("sd-"+id).value||sl.date;});
   else if(a==="askdel"){S.askDel=id;render();}
   else if(a==="delset"){S.db.doc("setlists/"+id).delete().then(function(){toast("Setlisten er slettet");},function(){toast("Kunne ikke slette",true);});delete S.sets[id];S.askDel=null;S.openSet=null;render();}
